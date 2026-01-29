@@ -14,3 +14,60 @@
 .animate-fadeIn {
   animation: fadeIn 0.5s ease-out;
 }
+
+/* Theme Variables - MoneyView Dark Green */
+:root {
+  --primary-bg: #ffffff;
+  --secondary-bg: #f9fafb;
+  --accent-color: #00704A;
+  --accent-hover: #005437;
+  --accent-light: #00875A;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --card-bg: #ffffff;
+  --navbar-bg: #ffffff;
+  --navbar-text: #111827;
+}
+
+[data-theme="green"] {
+  --primary-bg: #f0fdf7;
+  --secondary-bg: #d1f4e0;
+  --accent-color: #00704A;
+  --accent-hover: #005437;
+  --accent-light: #00875A;
+  --text-primary: #003d26;
+  --text-secondary: #005437;
+  --border-color: #99e6c4;
+  --card-bg: #ffffff;
+  --navbar-bg: #00704A;
+  --navbar-text: #ffffff;
+}
+
+[data-theme="white"] {
+  --primary-bg: #ffffff;
+  --secondary-bg: #f9fafb;
+  --accent-color: #00704A;
+  --accent-hover: #005437;
+  --accent-light: #00875A;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --card-bg: #ffffff;
+  --navbar-bg: #ffffff;
+  --navbar-text: #111827;
+}
+
+[data-theme="black"] {
+  --primary-bg: #111827;
+  --secondary-bg: #1f2937;
+  --accent-color: #00875A;
+  --accent-hover: #00704A;
+  --accent-light: #00a36c;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --border-color: #374151;
+  --card-bg: #1f2937;
+  --navbar-bg: #000000;
+  --navbar-text: #ffffff;
+}

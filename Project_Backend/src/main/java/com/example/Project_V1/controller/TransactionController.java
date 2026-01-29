@@ -1,5 +1,7 @@
 package com.example.Project_V1.controller;
 
+import com.example.Project_V1.dto.BulkMessageProcessRequestDto;
+import com.example.Project_V1.dto.BulkMessageProcessResponseDto;
 import com.example.Project_V1.dto.TransactionMessageRequestDto;
 import com.example.Project_V1.dto.TransactionResponseDto;
 import com.example.Project_V1.service.TransactionService;
@@ -51,6 +53,48 @@ public class TransactionController {
         } catch (Exception e) {
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", "An error occurred while processing the message: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Process multiple transaction messages in bulk
+     * POST /api/transactions/process-bulk
+     */
+    @PostMapping("/process-bulk")
+    public ResponseEntity<?> processBulkTransactionMessages(@RequestBody BulkMessageProcessRequestDto requestDto) {
+        try {
+            // Validate request
+            if (requestDto.getUserId() == null) {
+                Map<String, String> errorResponse = new HashMap<>();
+                errorResponse.put("error", "User ID is required");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+
+            if (requestDto.getMessages() == null || requestDto.getMessages().isEmpty()) {
+                Map<String, String> errorResponse = new HashMap<>();
+                errorResponse.put("error", "At least one message is required for bulk processing");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+
+            BulkMessageProcessResponseDto response = transactionService.processBulkMessages(requestDto);
+            
+            // Return 207 Multi-Status if some messages succeeded and some failed
+            if (response.getSuccessfullyProcessed() > 0 && response.getFailed() > 0) {
+                return ResponseEntity.status(HttpStatus.MULTI_STATUS).body(response);
+            }
+            
+            // Return 201 Created if all messages processed successfully
+            if (response.getFailed() == 0) {
+                return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            }
+            
+            // Return 400 Bad Request if all messages failed
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "An error occurred while processing bulk messages: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

@@ -1,5 +1,7 @@
 package com.example.Project_V1.service;
 
+import com.example.Project_V1.dto.BulkMessageProcessRequestDto;
+import com.example.Project_V1.dto.BulkMessageProcessResponseDto;
 import com.example.Project_V1.dto.TransactionExtractionResultDto;
 import com.example.Project_V1.dto.TransactionMessageRequestDto;
 import com.example.Project_V1.dto.TransactionResponseDto;
@@ -11,9 +13,11 @@ import com.example.Project_V1.repository.RegexLogRepository;
 import com.example.Project_V1.repository.TransactionRepository;
 import com.example.Project_V1.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -79,6 +83,92 @@ public class TransactionServiceImpl implements TransactionService {
         Transaction savedTransaction = transactionRepository.save(transaction);
 
         return convertToDto(savedTransaction);
+    }
+
+    /**
+     * Process each message in its own separate transaction to avoid rollback-only errors
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public TransactionResponseDto processMessageInNewTransaction(TransactionMessageRequestDto requestDto) {
+        return processMessage(requestDto);
+    }
+
+    @Override
+    public BulkMessageProcessResponseDto processBulkMessages(BulkMessageProcessRequestDto requestDto) {
+        BulkMessageProcessResponseDto response = new BulkMessageProcessResponseDto();
+        List<TransactionResponseDto> successfulTransactions = new ArrayList<>();
+        List<BulkMessageProcessResponseDto.FailedMessageDto> failedMessages = new ArrayList<>();
+
+        // Validate user exists first
+        try {
+            userRepository.findById(requestDto.getUserId())
+                    .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + requestDto.getUserId()));
+        } catch (IllegalArgumentException e) {
+            response.setTotalMessages(requestDto.getMessages() != null ? requestDto.getMessages().size() : 0);
+            response.setSuccessfullyProcessed(0);
+            response.setFailed(response.getTotalMessages());
+            response.setSuccessfulTransactions(new ArrayList<>());
+            response.setFailedMessages(new ArrayList<>());
+            
+            // Mark all messages as failed due to invalid user
+            if (requestDto.getMessages() != null) {
+                for (BulkMessageProcessRequestDto.MessageBankAddressPair pair : requestDto.getMessages()) {
+                    BulkMessageProcessResponseDto.FailedMessageDto failedMsg = new BulkMessageProcessResponseDto.FailedMessageDto();
+                    failedMsg.setMessage(pair.getMessage());
+                    failedMsg.setBankAddress(pair.getBankAddress());
+                    failedMsg.setError(e.getMessage());
+                    failedMsg.setMatchFound(false);
+                    response.getFailedMessages().add(failedMsg);
+                }
+            }
+            return response;
+        }
+
+        int totalMessages = requestDto.getMessages() != null ? requestDto.getMessages().size() : 0;
+        response.setTotalMessages(totalMessages);
+
+        // Process each message
+        if (requestDto.getMessages() != null) {
+            for (BulkMessageProcessRequestDto.MessageBankAddressPair messagePair : requestDto.getMessages()) {
+                try {
+                    // Create individual request DTO for each message
+                    TransactionMessageRequestDto singleMessageDto = new TransactionMessageRequestDto();
+                    singleMessageDto.setMessage(messagePair.getMessage());
+                    singleMessageDto.setBankAddress(messagePair.getBankAddress());
+                    singleMessageDto.setUserId(requestDto.getUserId());
+
+                    // Process the message using separate transaction for each message
+                    TransactionResponseDto transactionResponse = processMessageInNewTransaction(singleMessageDto);
+
+                    if (transactionResponse.isMatchFound()) {
+                        successfulTransactions.add(transactionResponse);
+                    } else {
+                        // No match found for this message
+                        BulkMessageProcessResponseDto.FailedMessageDto failedMsg = new BulkMessageProcessResponseDto.FailedMessageDto();
+                        failedMsg.setMessage(messagePair.getMessage());
+                        failedMsg.setBankAddress(messagePair.getBankAddress());
+                        failedMsg.setError("No approved regex pattern matched the message");
+                        failedMsg.setMatchFound(false);
+                        failedMessages.add(failedMsg);
+                    }
+                } catch (Exception e) {
+                    // Any error during processing of this message
+                    BulkMessageProcessResponseDto.FailedMessageDto failedMsg = new BulkMessageProcessResponseDto.FailedMessageDto();
+                    failedMsg.setMessage(messagePair.getMessage());
+                    failedMsg.setBankAddress(messagePair.getBankAddress());
+                    failedMsg.setError(e.getMessage());
+                    failedMsg.setMatchFound(false);
+                    failedMessages.add(failedMsg);
+                }
+            }
+        }
+
+        response.setSuccessfullyProcessed(successfulTransactions.size());
+        response.setFailed(failedMessages.size());
+        response.setSuccessfulTransactions(successfulTransactions);
+        response.setFailedMessages(failedMessages);
+
+        return response;
     }
 
     /**

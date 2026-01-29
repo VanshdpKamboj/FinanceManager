@@ -18,6 +18,9 @@ const CheckerDashBoard = () => {
     const [loading, setLoading] = useState(false);
     const [testLoading, setTestLoading] = useState(false);
     const [selectedPatternId, setSelectedPatternId] = useState(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [selectedPattern, setSelectedPattern] = useState(null);
+    const [dialogType, setDialogType] = useState(''); // 'pending' or 'approved'
 
     // Fetch pending and approved patterns on component mount
     useEffect(() => {
@@ -77,24 +80,20 @@ const CheckerDashBoard = () => {
         }
     };
 
-    const handleApprove = async () => {
-        if (!selectedPatternId) {
+    const handleApprove = async (patternId) => {
+        if (!patternId) {
             toast.error('Please select a pattern to approve');
             return;
         }
 
         try {
-            const patternId = selectedPatternId
             const response = await approvePattern(patternId);
 
             if (response) {
                 toast.success('Pattern approved successfully!');
                 await fetchPatterns();
-                // Clear selection and form
-                setSelectedPatternId(null);
-                setRegex('');
-                setMessage('');
-                setTestResult(null);
+                setDialogOpen(false);
+                setSelectedPattern(null);
             } else {
                 toast.error(response?.data?.message || 'Approval failed');
             }
@@ -103,23 +102,20 @@ const CheckerDashBoard = () => {
         }
     };
 
-    const handleReject = async () => {
-        if (!selectedPatternId) {
+    const handleReject = async (patternId) => {
+        if (!patternId) {
             toast.error('Please select a pattern to reject');
             return;
         }
 
         try {
-            const response = await rejectPattern(selectedPatternId);
+            const response = await rejectPattern(patternId);
             
             if (response.data) {
                 toast.success('Pattern rejected successfully!');
                 await fetchPatterns();
-                // Clear selection and form
-                setSelectedPatternId(null);
-                setRegex('');
-                setMessage('');
-                setTestResult(null);
+                setDialogOpen(false);
+                setSelectedPattern(null);
             } else {
                 toast.error(response?.data.message || 'Rejection failed');
             }
@@ -128,10 +124,24 @@ const CheckerDashBoard = () => {
         }
     };
 
-    const handlePatternClick = (pattern) => {
-        setRegex(pattern.pattern);
-        setMessage(pattern.text);
-        setSelectedPatternId(pattern.id);
+    const handlePatternClick = (pattern, type) => {
+        setSelectedPattern(pattern);
+        setDialogType(type);
+        setDialogOpen(true);
+    };
+
+    const handlePasteToTest = () => {
+        if (selectedPattern) {
+            setRegex(selectedPattern.pattern);
+            setMessage(selectedPattern.text);
+            setDialogOpen(false);
+            toast.success('Pattern pasted to test fields');
+        }
+    };
+
+    const truncateText = (text, maxLength = 50) => {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
     };
 
     return (
@@ -151,8 +161,9 @@ const CheckerDashBoard = () => {
                             <textarea
                                 type="text"
                                 value={regex}
+                                rows={5}
                                 onChange={(e) => setRegex(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
                                 placeholder="Enter regex pattern (e.g., \d{10})"
                             />
                         </div>
@@ -165,7 +176,7 @@ const CheckerDashBoard = () => {
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 rows={4}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-700 focus:border-transparent"
                                 placeholder="Enter message to test against the regex"
                             />
                         </div>
@@ -174,25 +185,9 @@ const CheckerDashBoard = () => {
                             <button
                                 onClick={handleTest}
                                 disabled={testLoading}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                                className="px-6 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                             >
                                 {testLoading ? 'Testing...' : 'Test'}
-                            </button>
-
-                            <button
-                                onClick={handleApprove}
-                                disabled={!selectedPatternId}
-                                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Approve
-                            </button>
-
-                            <button
-                                onClick={handleReject}
-                                disabled={!selectedPatternId}
-                                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                            >
-                                Reject
                             </button>
                         </div>
 
@@ -276,28 +271,28 @@ const CheckerDashBoard = () => {
                             {pendingPatterns.map((pattern) => (
                                 <div
                                     key={pattern.id}
-                                    onClick={() => handlePatternClick(pattern)}
-                                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                                        selectedPatternId === pattern.id
-                                            ? 'border-blue-500 bg-blue-50'
-                                            : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'
-                                    }`}
+                                    onClick={() => handlePatternClick(pattern, 'pending')}
+                                    className="p-4 border-2 border-gray-400 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors"
                                 >
-                                    <div className="mb-2">
-                                        <span className="text-sm font-medium text-gray-700">Regex:</span>
-                                        <p className="text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded mt-1">
-                                            {pattern.pattern}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <span className="text-sm font-medium text-gray-700">Message:</span>
-                                        <p className="text-gray-900 mt-1">{pattern.text}</p>
-                                    </div>
-                                    {pattern.createdBy && (
-                                        <div className="mt-2 text-sm text-gray-500">
-                                            Created by: {pattern.createdBy}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs font-semibold text-gray-800 bg-gray-300 px-2 py-1 rounded">PENDING</span>
+                                                <span className="text-xs text-gray-500">ID: {pattern.id}</span>
+                                            </div>
+                                            <div className="text-sm">
+                                                <span className="font-medium text-gray-700">Regex: </span>
+                                                <span className="font-mono text-gray-900">{truncateText(pattern.pattern, 40)}</span>
+                                            </div>
+                                            <div className="text-sm mt-1">
+                                                <span className="font-medium text-gray-700">Message: </span>
+                                                <span className="text-gray-900">{truncateText(pattern.text, 60)}</span>
+                                            </div>
                                         </div>
-                                    )}
+                                        <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -317,29 +312,134 @@ const CheckerDashBoard = () => {
                             {approvedPatterns.map((pattern) => (
                                 <div
                                     key={pattern.id}
-                                    className="p-4 border border-green-300 rounded-lg bg-green-50"
+                                    onClick={() => handlePatternClick(pattern, 'approved')}
+                                    className="p-4 border-2 border-green-300 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
                                 >
-                                    <div className="mb-2">
-                                        <span className="text-sm font-medium text-gray-700">Regex:</span>
-                                        <p className="text-gray-900 font-mono bg-white px-2 py-1 rounded mt-1">
-                                            {pattern.pattern}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <span className="text-sm font-medium text-gray-700">Message:</span>
-                                        <p className="text-gray-900 mt-1">{pattern.text}</p>
-                                    </div>
-                                    {pattern.approvedBy && (
-                                        <div className="mt-2 text-sm text-gray-500">
-                                            Approved by: {pattern.approvedBy}
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs font-semibold text-green-700 bg-green-200 px-2 py-1 rounded">APPROVED</span>
+                                                <span className="text-xs text-gray-500">ID: {pattern.id}</span>
+                                            </div>
+                                            <div className="text-sm">
+                                                <span className="font-medium text-gray-700">Regex: </span>
+                                                <span className="font-mono text-gray-900">{truncateText(pattern.pattern, 40)}</span>
+                                            </div>
+                                            <div className="text-sm mt-1">
+                                                <span className="font-medium text-gray-700">Message: </span>
+                                                <span className="text-gray-900">{truncateText(pattern.text, 60)}</span>
+                                            </div>
                                         </div>
-                                    )}
+                                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
             </div>
+
+            {/* Dialog Modal */}
+            {dialogOpen && selectedPattern && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className={`sticky top-0 p-6 border-b ${dialogType === 'approved' ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-300'}`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <h3 className="text-2xl font-bold text-gray-800">Pattern Details</h3>
+                                    <span className={`text-xs font-semibold px-3 py-1 rounded ${
+                                        dialogType === 'approved' 
+                                            ? 'bg-green-200 text-green-800' 
+                                            : 'bg-gray-300 text-gray-800'
+                                    }`}>
+                                        {dialogType.toUpperCase()}
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => setDialogOpen(false)}
+                                    className="text-gray-500 hover:text-gray-700 transition-colors"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Pattern ID</label>
+                                <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+                                    {selectedPattern.id}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Regex Pattern</label>
+                                <div className="bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
+                                    <code className="text-gray-900 font-mono text-sm break-all">
+                                        {selectedPattern.pattern}
+                                    </code>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Test Message</label>
+                                <div className="bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
+                                    <p className="text-gray-900 text-sm whitespace-pre-wrap break-words">
+                                        {selectedPattern.text}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {selectedPattern.createdBy && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Created By</label>
+                                    <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+                                        {selectedPattern.createdBy}
+                                    </p>
+                                </div>
+                            )}
+
+                            {selectedPattern.approvedBy && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Approved By</label>
+                                    <p className="text-gray-900 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+                                        {selectedPattern.approvedBy}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {dialogType === 'pending' && (
+                            <div className="p-6 border-t border-gray-200 bg-gray-50">
+                                <div className="flex gap-3 justify-end">
+                                    <button
+                                        onClick={handlePasteToTest}
+                                        className="px-5 py-2 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800 transition-colors font-medium"
+                                    >
+                                        Paste to Test
+                                    </button>
+                                    <button
+                                        onClick={() => handleApprove(selectedPattern.id)}
+                                        className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        onClick={() => handleReject(selectedPattern.id)}
+                                        className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

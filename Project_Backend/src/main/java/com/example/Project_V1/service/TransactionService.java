@@ -1,9 +1,10 @@
 package com.example.Project_V1.service;
 
+import com.example.Project_V1.dto.BulkMessageProcessRequestDto;
+import com.example.Project_V1.dto.BulkMessageProcessResponseDto;
 import com.example.Project_V1.dto.TransactionMessageRequestDto;
 import com.example.Project_V1.dto.TransactionResponseDto;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TransactionService {
@@ -14,6 +15,20 @@ public interface TransactionService {
      * @return TransactionResponseDto with extracted data and saved transaction
      */
     TransactionResponseDto processMessage(TransactionMessageRequestDto requestDto);
+    
+    /**
+     * Process each message in its own separate transaction to avoid rollback-only errors
+     * @param requestDto Contains the message and userId
+     * @return TransactionResponseDto with extracted data and saved transaction
+     */
+    TransactionResponseDto processMessageInNewTransaction(TransactionMessageRequestDto requestDto);
+    
+    /**
+     * Process multiple messages in bulk
+     * @param requestDto Contains userId and list of message-bankAddress pairs
+     * @return BulkMessageProcessResponseDto with summary and details of all processed messages
+     */
+    BulkMessageProcessResponseDto processBulkMessages(BulkMessageProcessRequestDto requestDto);
     
     /**
      * Get all transactions for a specific user

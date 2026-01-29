@@ -27,6 +27,22 @@ function MakerDashboard() {
     const [activeSection, setActiveSection] = useState("normal");
     const [patternId, setPatternId] = useState(-1);
     const [showSaveButtons, setShowSaveButtons] = useState(true);
+    const [currentPattern, setCurrentPattern] = useState(null);
+    
+    // Dialog state for pattern details
+    const [showPatternDialog, setShowPatternDialog] = useState(false);
+    const [selectedPattern, setSelectedPattern] = useState(null);
+    
+    // Dropdown states for pagination
+    const [draftedDropdownOpen, setDraftedDropdownOpen] = useState(false);
+    const [rejectedDropdownOpen, setRejectedDropdownOpen] = useState(false);
+    const [acceptedDropdownOpen, setAcceptedDropdownOpen] = useState(false);
+    const [draftedPage, setDraftedPage] = useState(1);
+    const [rejectedPage, setRejectedPage] = useState(1);
+    const [acceptedPage, setAcceptedPage] = useState(1);
+    const [currentPatternPage, setCurrentPatternPage] = useState(1);
+    const itemsPerPage = 7;
+    const currentPatternItemsPerPage = 10;
 
     // New fields for bank and merchant details
     const [bankAddress, setBankAddress] = useState("");
@@ -65,6 +81,22 @@ function MakerDashboard() {
         fetchAllPatterns();
     }, []);
 
+    // Close dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.pattern-dropdown-container')) {
+                setDraftedDropdownOpen(false);
+                setRejectedDropdownOpen(false);
+                setAcceptedDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     const fetchAllPatterns = async () => {
         try {
             const [draftedRes, rejectedRes, acceptedRes] = await Promise.all([
@@ -82,8 +114,130 @@ function MakerDashboard() {
             if (acceptedRes?.data) {
                 setAcceptedPatterns(acceptedRes.data || []);
             }
+            // Reset to first page when patterns are fetched
+            setCurrentPatternPage(1);
         } catch (error) {
             console.error("Error fetching patterns:", error);
+        }
+    };
+
+    // Auto-extract information from message text (only fills empty fields)
+    const extractInfoFromMessage = (messageText, forceExtract = false) => {
+        if (!messageText || !messageText.trim()) {
+            return;
+        }
+
+        const text = messageText.toUpperCase();
+        
+        // Common bank names to look for
+        const bankNames = [
+            "HDFC", "ICICI", "SBI", "AXIS", "KOTAK", "PNB", "BOI", "BOB", 
+            "CANARA", "UNION", "INDUSIND", "YES", "IDFC", "FEDERAL", "SOUTH INDIAN",
+            "BANK OF BARODA", "BANK OF INDIA", "STATE BANK", "PUNJAB NATIONAL"
+        ];
+        
+        // Extract bank name (only if field is empty or forceExtract is true)
+        if (forceExtract || !bankName) {
+            for (const bank of bankNames) {
+                if (text.includes(bank)) {
+                    setBankName(bank);
+                    break;
+                }
+            }
+        }
+        
+        // Extract bank address (look for common patterns like "from", "via", "to")
+        if (forceExtract || !bankAddress) {
+            const addressPatterns = [
+                /(?:FROM|VIA|TO|BANK)\s*:?\s*([A-Z0-9\s,.-]+)/i,
+                /(?:ACCOUNT|ACC)\s*:?\s*([A-Z0-9\s,.-]+)/i
+            ];
+            
+            for (const pattern of addressPatterns) {
+                const match = messageText.match(pattern);
+                if (match && match[1]) {
+                    const extracted = match[1].trim();
+                    if (extracted.length > 5 && extracted.length < 100) {
+                        setBankAddress(extracted);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Extract merchant name (look for patterns like "paid to", "merchant", "to", etc.)
+        if (forceExtract || !merchantName) {
+            const merchantPatterns = [
+                /(?:PAID\s+TO|MERCHANT|TO|PAYMENT\s+TO|DEBIT\s+TO)\s*:?\s*([A-Z\s&.,-]+)/i,
+                /(?:AT|FROM)\s+([A-Z\s&.,-]+?)(?:\s+(?:ON|DATE|AMOUNT|RS|INR))/i
+            ];
+            
+            for (const pattern of merchantPatterns) {
+                const match = messageText.match(pattern);
+                if (match && match[1]) {
+                    const extracted = match[1].trim();
+                    // Filter out common words that aren't merchant names
+                    if (extracted.length > 2 && extracted.length < 50 && 
+                        !extracted.match(/^(ACCOUNT|BANK|CARD|DEBIT|CREDIT|PAYMENT)$/i)) {
+                        setMerchantName(extracted);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Extract transaction type
+        if (forceExtract || !transactionType) {
+            if (text.includes("DEBIT") || text.includes("DEBITED") || text.includes("PAID")) {
+                setTransactionType("Debit");
+            } else if (text.includes("CREDIT") || text.includes("CREDITED") || text.includes("RECEIVED")) {
+                setTransactionType("Credit");
+            } else if (text.includes("TRANSFER")) {
+                setTransactionType("Transfer");
+            } else if (text.includes("PAYMENT")) {
+                setTransactionType("Payment");
+            } else if (text.includes("REFUND")) {
+                setTransactionType("Refund");
+            } else if (text.includes("WITHDRAWAL") || text.includes("WITHDRAW")) {
+                setTransactionType("Withdrawal");
+            } else if (text.includes("DEPOSIT")) {
+                setTransactionType("Deposit");
+            }
+        }
+        
+        // Extract transaction category based on merchant name or keywords
+        if (forceExtract || !transactionCategory) {
+            const merchant = (merchantName || "").toUpperCase();
+            const messageUpper = text;
+            
+            if (merchant.match(/(?:RESTAURANT|FOOD|CAFE|PIZZA|BURGER|MCDONALDS|DOMINOS|SWIGGY|ZOMATO)/i) ||
+                messageUpper.match(/(?:RESTAURANT|FOOD|CAFE|PIZZA|BURGER|MCDONALDS|DOMINOS|SWIGGY|ZOMATO)/i)) {
+                setTransactionCategory("Food & Dining");
+            } else if (merchant.match(/(?:AMAZON|FLIPKART|SHOP|MALL|STORE|MARKET)/i) ||
+                       messageUpper.match(/(?:AMAZON|FLIPKART|SHOP|MALL|STORE|MARKET)/i)) {
+                setTransactionCategory("Shopping");
+            } else if (merchant.match(/(?:UBER|OLA|TAXI|CAB|METRO|BUS|TRAIN|TRANSPORT)/i) ||
+                       messageUpper.match(/(?:UBER|OLA|TAXI|CAB|METRO|BUS|TRAIN|TRANSPORT)/i)) {
+                setTransactionCategory("Transportation");
+            } else if (merchant.match(/(?:MOVIE|CINEMA|NETFLIX|SPOTIFY|ENTERTAINMENT)/i) ||
+                       messageUpper.match(/(?:MOVIE|CINEMA|NETFLIX|SPOTIFY|ENTERTAINMENT)/i)) {
+                setTransactionCategory("Entertainment");
+            } else if (merchant.match(/(?:ELECTRICITY|WATER|GAS|PHONE|BILL|UTILITY)/i) ||
+                       messageUpper.match(/(?:ELECTRICITY|WATER|GAS|PHONE|BILL|UTILITY)/i)) {
+                setTransactionCategory("Bills & Utilities");
+            } else if (merchant.match(/(?:HOSPITAL|CLINIC|PHARMACY|MEDICAL|DOCTOR)/i) ||
+                       messageUpper.match(/(?:HOSPITAL|CLINIC|PHARMACY|MEDICAL|DOCTOR)/i)) {
+                setTransactionCategory("Healthcare");
+            } else if (merchant.match(/(?:HOTEL|TRAVEL|FLIGHT|AIRLINE|BOOKING)/i) ||
+                       messageUpper.match(/(?:HOTEL|TRAVEL|FLIGHT|AIRLINE|BOOKING)/i)) {
+                setTransactionCategory("Travel");
+            } else if (merchant.match(/(?:SCHOOL|COLLEGE|UNIVERSITY|EDUCATION|TUITION)/i) ||
+                       messageUpper.match(/(?:SCHOOL|COLLEGE|UNIVERSITY|EDUCATION|TUITION)/i)) {
+                setTransactionCategory("Education");
+            } else if (merchant.match(/(?:INVESTMENT|STOCK|MUTUAL|FUND)/i) ||
+                       messageUpper.match(/(?:INVESTMENT|STOCK|MUTUAL|FUND)/i)) {
+                setTransactionCategory("Investment");
+            }
         }
     };
 
@@ -204,6 +358,7 @@ function MakerDashboard() {
                 setTransactionCategory("");
                 setTransactionType("");
                 setFieldErrors({});
+                setCurrentPattern(null);
                 setTestResult({
                     matchFound: false,
                     accountNumber: "-1",
@@ -266,6 +421,7 @@ function MakerDashboard() {
                 setTransactionCategory("");
                 setTransactionType("");
                 setFieldErrors({});
+                setCurrentPattern(null);
                 setTestResult({
                     matchFound: false,
                     accountNumber: "-1",
@@ -291,20 +447,44 @@ function MakerDashboard() {
     };
 
     const handlePatternClick = (pattern) => {
+        // Open dialog instead of directly copying
+        setSelectedPattern(pattern);
+        setShowPatternDialog(true);
+    };
 
+    const handlePastePattern = () => {
+        if (!selectedPattern) return;
+        
+        const pattern = selectedPattern;
         setRegexPattern(pattern.regexPattern || pattern.pattern || "");
-        setMessage(pattern.message || pattern.text || "");
+        const messageText = pattern.message || pattern.text || "";
+        setMessage(messageText);
         setPatternId(pattern.id || pattern._id || null);
         
-        // Populate additional fields if available
+        // Set current pattern for the table display
+        setCurrentPattern(pattern);
+        
+        // Populate additional fields from pattern data first
         setBankAddress(pattern.bankAddress || "");
         setBankName(pattern.bankName || "");
         setMerchantName(pattern.merchantName || "");
         setTransactionCategory(pattern.transactionCategory || "");
         setTransactionType(pattern.transactionType || "");
+        
+        // If any fields are missing, try to extract from message
+        if (!pattern.bankAddress || !pattern.bankName || !pattern.merchantName || 
+            !pattern.transactionCategory || !pattern.transactionType) {
+            // Use setTimeout to ensure state updates are complete before extraction
+            setTimeout(() => {
+                extractInfoFromMessage(messageText, false);
+            }, 100);
+        }
+        
         setFieldErrors({});
 
-        if(pattern.status == "APPROVED") {
+        // Disable Save/Approval buttons only for APPROVED patterns
+        const patternStatus = (pattern.status || "").toUpperCase();
+        if(patternStatus === "APPROVED" || patternStatus === "ACCEPTED" || patternStatus === "ACCEPT") {
             setShowSaveButtons(false);
         } else {
             setShowSaveButtons(true);
@@ -322,6 +502,10 @@ function MakerDashboard() {
             referenceNumber: "-1"
         });
         setActiveSection("normal");
+        
+        // Close dialog
+        setShowPatternDialog(false);
+        setSelectedPattern(null);
     };
 
     // const handleResubmitPattern = async (patternId) => {
@@ -345,104 +529,150 @@ function MakerDashboard() {
     //     }
     // };
 
-    const renderPatternList = (patterns, type) => {
+    // Render paginated dropdown for patterns
+    const renderPatternDropdown = (patterns, type, isOpen, setIsOpen, currentPage, setCurrentPage, closeOtherDropdowns) => {
         if (!patterns || patterns.length === 0) {
             return (
-                <div className="text-gray-500 text-center py-8">
-                    No {type} patterns found.
+                <div className="relative pattern-dropdown-container">
+                    <button
+                        onClick={() => {
+                            // Close other dropdowns when opening this one
+                            if (closeOtherDropdowns) {
+                                closeOtherDropdowns();
+                            }
+                            setIsOpen(!isOpen);
+                        }}
+                        className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-left flex justify-between items-center hover:bg-gray-200"
+                    >
+                        <span className="text-gray-700">No {type} patterns found</span>
+                        <svg className={`w-5 h-5 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
                 </div>
             );
         }
 
-        // Group patterns by bank address
-        const groupedByBankAddress = patterns.reduce((acc, pattern) => {
-            const bankAddr = pattern.bankAddress || "Unknown Bank Address";
-            if (!acc[bankAddr]) {
-                acc[bankAddr] = [];
+        const totalPages = Math.ceil(patterns.length / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentPagePatterns = patterns.slice(startIndex, endIndex);
+
+        const getStatusColor = (status) => {
+            const statusUpper = (status || "").toUpperCase();
+            if (statusUpper === "REJECTED" || statusUpper === "REJECT") {
+                return "text-red-700 bg-red-100 border-red-300";
+            } else if (statusUpper === "APPROVED" || statusUpper === "ACCEPTED" || statusUpper === "ACCEPT") {
+                return "text-green-700 bg-green-100 border-green-300";
+            } else if (statusUpper === "DRAFTED" || statusUpper === "DRAFT" || statusUpper === "PENDING") {
+                return "text-gray-700 bg-gray-100 border-gray-300";
             }
-            acc[bankAddr].push(pattern);
-            return acc;
-        }, {});
+            return "text-gray-600 bg-gray-50 border-gray-200";
+        };
+
+        const getStatusText = (status, type) => {
+            const statusUpper = (status || "").toUpperCase();
+            if (statusUpper === "REJECTED" || statusUpper === "REJECT") {
+                return "Rejected";
+            } else if (statusUpper === "APPROVED" || statusUpper === "ACCEPTED" || statusUpper === "ACCEPT") {
+                return "Approved";
+            } else if (statusUpper === "DRAFTED" || statusUpper === "DRAFT") {
+                return "Drafted";
+            } else if (statusUpper === "PENDING") {
+                return "Pending";
+            }
+            return type === "drafted" ? "Drafted" : type === "rejected" ? "Rejected" : "Approved";
+        };
 
         return (
-            <div className="space-y-6">
-                {Object.entries(groupedByBankAddress).map(([bankAddr, bankPatterns]) => (
-                    <div key={bankAddr} className="border-2 border-indigo-200 rounded-lg p-4 bg-gradient-to-r from-indigo-50 to-blue-50">
-                        {/* Bank Address Header */}
-                        <div className="mb-4 pb-3 border-b-2 border-indigo-300">
-                            <h4 className="text-lg font-bold text-indigo-900 flex items-center">
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                Bank Address: {bankAddr}
-                            </h4>
-                            <p className="text-sm text-gray-600 mt-1">
-                                {bankPatterns.length} pattern{bankPatterns.length !== 1 ? 's' : ''} found
-                            </p>
-                        </div>
-
-                        {/* Patterns for this bank address */}
-                        <div className="space-y-3">
-                            {bankPatterns.map((data, index) => (
+            <div className="relative pattern-dropdown-container ">
+                <button
+                    onClick={() => {
+                        // Close other dropdowns when opening this one
+                        if (closeOtherDropdowns) {
+                            closeOtherDropdowns();
+                        }
+                        setIsOpen(!isOpen);
+                    }}
+                    className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-left flex justify-between items-center hover:bg-gray-200"
+                >
+                    <span className="text-gray-700 font-medium">
+                        {type.charAt(0).toUpperCase() + type.slice(1)} Patterns ({patterns.length})
+                    </span>
+                    <svg className={`w-5 h-5 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                
+                {isOpen && (
+                    <div className="absolute z-10 w-full mt-2 bg-white border border-gray-300 rounded-md shadow-lg max-h-96 overflow-y-auto">
+                        <div className="p-2 space-y-2">
+                            {currentPagePatterns.map((pattern, index) => (
                                 <div
-                                    key={data.id || data._id || index}
-                                    className="bg-white border border-gray-300 rounded-lg p-4 hover:shadow-lg transition-all cursor-pointer hover:border-indigo-400"
-                                    onClick={() => handlePatternClick(data)}
+                                    key={pattern.id || pattern._id || index}
+                                    onClick={() => {
+                                        handlePatternClick(pattern);
+                                        setIsOpen(false);
+                                    }}
+                                    className="p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer transition-colors"
                                 >
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            {/* Bank Details */}
-                                            <div className="mb-3 flex flex-wrap gap-2">
-                                                {data.bankName && (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                        {data.bankName}
-                                                    </span>
-                                                )}
-                                                {data.merchantName && (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                        {data.merchantName}
-                                                    </span>
-                                                )}
-                                                {data.transactionCategory && (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                        {data.transactionCategory}
-                                                    </span>
-                                                )}
-                                                {data.transactionType && (
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                        {data.transactionType}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Pattern */}
-                                            <div className="mb-2">
-                                                <span className="text-xs font-semibold text-gray-500">Regex Pattern:</span>
-                                                <p className="text-sm font-mono bg-gray-50 p-2 rounded mt-1 break-all border border-gray-200">
-                                                    {data.regexPattern || data.pattern || "N/A"}
-                                                </p>
-                                            </div>
-
-                                            {/* Message */}
-                                            <div>
-                                                <span className="text-xs font-semibold text-gray-500">Sample Message:</span>
-                                                <p className="text-sm text-gray-700 mt-1 bg-gray-50 p-2 rounded border border-gray-200">
-                                                    {data.text || data.message || "N/A"}
-                                                </p>
-                                            </div>
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-gray-900 truncate">
+                                                {pattern.message || pattern.text || "No message"}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-1 truncate">
+                                                Pattern: {pattern.regexPattern || pattern.pattern || "N/A"}
+                                            </p>
                                         </div>
+                                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded border ${getStatusColor(pattern.status || type)}`}>
+                                            {getStatusText(pattern.status, type)}
+                                        </span>
                                     </div>
                                 </div>
                             ))}
                         </div>
+                        
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="border-t border-gray-200 p-2 flex items-center justify-between">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (currentPage > 1) {
+                                            setCurrentPage(currentPage - 1);
+                                        }
+                                    }}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-sm text-gray-600">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (currentPage < totalPages) {
+                                            setCurrentPage(currentPage + 1);
+                                        }
+                                    }}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
                     </div>
-                ))}
+                )}
             </div>
         );
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 p-6 min-h-screen">
             <h2 className="text-3xl font-bold text-gray-900">Maker Dashboard</h2>
 
             {/* Bank and Merchant Details Section */}
@@ -464,7 +694,7 @@ function MakerDashboard() {
                                     setFieldErrors({...fieldErrors, bankAddress: ""});
                                 }
                             }}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-emerald-700 focus:border-emerald-700 ${
                                 fieldErrors.bankAddress ? 'border-red-500' : 'border-gray-300'
                             }`}
                             placeholder="Enter bank address..."
@@ -489,7 +719,7 @@ function MakerDashboard() {
                                     setFieldErrors({...fieldErrors, bankName: ""});
                                 }
                             }}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-emerald-700 focus:border-emerald-700 ${
                                 fieldErrors.bankName ? 'border-red-500' : 'border-gray-300'
                             }`}
                             placeholder="Enter bank name..."
@@ -514,7 +744,7 @@ function MakerDashboard() {
                                     setFieldErrors({...fieldErrors, merchantName: ""});
                                 }
                             }}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-emerald-700 focus:border-emerald-700 ${
                                 fieldErrors.merchantName ? 'border-red-500' : 'border-gray-300'
                             }`}
                             placeholder="Enter merchant name..."
@@ -538,7 +768,7 @@ function MakerDashboard() {
                                     setFieldErrors({...fieldErrors, transactionCategory: ""});
                                 }
                             }}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-emerald-700 focus:border-emerald-700 ${
                                 fieldErrors.transactionCategory ? 'border-red-500' : 'border-gray-300'
                             }`}
                         >
@@ -568,7 +798,7 @@ function MakerDashboard() {
                                     setFieldErrors({...fieldErrors, transactionType: ""});
                                 }
                             }}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-emerald-700 focus:border-emerald-700 ${
                                 fieldErrors.transactionType ? 'border-red-500' : 'border-gray-300'
                             }`}
                         >
@@ -612,7 +842,7 @@ function MakerDashboard() {
                             value={regexPattern}
                             onChange={(e) => setRegexPattern(e.target.value)}
                             rows={5}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-emerald-700 focus:border-emerald-700"
                             placeholder="Enter regex pattern..."
                         />
                     </div>
@@ -624,40 +854,78 @@ function MakerDashboard() {
                             id="message"
                             rows="4"
                             value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            onChange={(e) => {
+                                setMessage(e.target.value);
+                                // Auto-extract information when message changes
+                                extractInfoFromMessage(e.target.value);
+                            }}
+                            onBlur={(e) => {
+                                // Also extract on blur in case user pastes content
+                                if (e.target.value) {
+                                    extractInfoFromMessage(e.target.value);
+                                }
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-emerald-700 focus:border-emerald-700"
                             placeholder="Enter message to test..."
                         />
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 justify-between">
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleTestRegex}
+                                disabled={testLoading || !regexPattern.trim() || !message.trim()}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {testLoading ? "Testing..." : "Test Regex"}
+                            </button>
+                            <button
+                                onClick={handleSubmitForApproval}
+                                disabled={!showSaveButtons || loading || !regexPattern.trim() || !message.trim()}
+                                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? "Submitting..." : "Submit for Approval"}
+                            </button>
+                            <button
+                                onClick={handleSaveAsDraft}
+                                disabled={!showSaveButtons || loading || !regexPattern.trim() || !message.trim()}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? "Saving..." : "Save as Draft"}
+                            </button>
+                        </div>
                         <button
-                            onClick={handleTestRegex}
-                            disabled={testLoading || !regexPattern.trim() || !message.trim()}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => {
+                                // Clear all fields
+                                setRegexPattern("");
+                                setMessage("");
+                                setBankAddress("");
+                                setBankName("");
+                                setMerchantName("");
+                                setTransactionCategory("");
+                                setTransactionType("");
+                                setFieldErrors({});
+                                setPatternId(-1);
+                                setCurrentPattern(null);
+                                setShowSaveButtons(true);
+                                setTestResult({
+                                    matchFound: false,
+                                    accountNumber: "-1",
+                                    transactionType: "-1",
+                                    amount: "-1",
+                                    date: "-1",
+                                    via: "-1",
+                                    to: "-1",
+                                    availableBalance: "-1",
+                                    referenceNumber: "-1"
+                                });
+                                setError("");
+                                setSuccess("");
+                                toast.success("All fields cleared!");
+                            }}
+                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                         >
-                            {testLoading ? "Testing..." : "Test Regex"}
+                            Clear All
                         </button>
-                        {
-                            setShowSaveButtons && (
-                                <>
-                                <button
-                                    onClick={handleSubmitForApproval}
-                                    disabled={loading || !regexPattern.trim() || !message.trim()}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? "Submitting..." : "Submit for Approval"}
-                                </button>
-                                <button
-                                    onClick={handleSaveAsDraft}
-                                    disabled={loading || !regexPattern.trim() || !message.trim()}
-                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? "Saving..." : "Save as Draft"}
-                                </button>
-                                </>
-                            )
-                        }
-                        
                     </div>
 
                     {/* Test Results */}
@@ -724,26 +992,317 @@ function MakerDashboard() {
                             {/* )} */}
                         </div>
                     {/* )} */}
+                    
+                    {/* Current Pattern Section */}
+                    <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-3">Current Pattern</h4>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Pattern
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Message
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Status
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {(() => {
+                                        // Combine all patterns
+                                        const allPatterns = [
+                                            ...draftedPatterns.map(p => ({ ...p, status: p.status || "DRAFTED" })),
+                                            ...rejectedPatterns.map(p => ({ ...p, status: p.status || "REJECTED" })),
+                                            ...acceptedPatterns.map(p => ({ ...p, status: p.status || "APPROVED" }))
+                                        ];
+
+                                        // Calculate pagination
+                                        const totalPages = Math.ceil(allPatterns.length / currentPatternItemsPerPage);
+                                        const startIndex = (currentPatternPage - 1) * currentPatternItemsPerPage;
+                                        const endIndex = startIndex + currentPatternItemsPerPage;
+                                        const currentPagePatterns = allPatterns.slice(startIndex, endIndex);
+
+                                        const getStatusDisplay = (pattern) => {
+                                            const status = (pattern.status || "").toUpperCase();
+                                            let statusText = "";
+                                            let statusClass = "";
+                                            
+                                            if (status === "REJECTED" || status === "REJECT") {
+                                                statusText = "Rejected";
+                                                statusClass = "px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 border border-red-200";
+                                            } else if (status === "APPROVED" || status === "ACCEPTED" || status === "ACCEPT") {
+                                                statusText = "Approved";
+                                                statusClass = "px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 border border-green-300";
+                                            } else if (status === "DRAFTED" || status === "DRAFT" || status === "PENDING") {
+                                                statusText = status === "PENDING" ? "Pending" : "Drafted";
+                                                statusClass = "px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-300";
+                                            } else {
+                                                statusText = "Pending";
+                                                statusClass = "px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 border border-gray-300";
+                                            }
+                                            
+                                            return { statusText, statusClass };
+                                        };
+
+                                        if (allPatterns.length === 0) {
+                                            return (
+                                                <tr>
+                                                    <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">
+                                                        No patterns found. Create a pattern to see it here.
+                                                    </td>
+                                                </tr>
+                                            );
+                                        }
+
+                                        return currentPagePatterns.map((pattern, index) => {
+                                            const { statusText, statusClass } = getStatusDisplay(pattern);
+                                            return (
+                                                <tr 
+                                                    key={pattern.id || pattern._id || index}
+                                                    onClick={() => handlePatternClick(pattern)}
+                                                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                                                >
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm font-mono text-gray-900 break-all max-w-md">
+                                                            {pattern.regexPattern || pattern.pattern || "N/A"}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm text-gray-900 break-words max-w-md">
+                                                            {pattern.message || pattern.text || "N/A"}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={statusClass}>
+                                                            {statusText}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        });
+                                    })()}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {/* Pagination Controls for Current Pattern Table */}
+                        {(() => {
+                            const allPatterns = [
+                                ...draftedPatterns,
+                                ...rejectedPatterns,
+                                ...acceptedPatterns
+                            ];
+                            const totalPages = Math.ceil(allPatterns.length / currentPatternItemsPerPage);
+                            
+                            if (totalPages <= 1) return null;
+                            
+                            return (
+                                <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
+                                    <button
+                                        onClick={() => {
+                                            if (currentPatternPage > 1) {
+                                                setCurrentPatternPage(currentPatternPage - 1);
+                                            }
+                                        }}
+                                        disabled={currentPatternPage === 1}
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="text-sm text-gray-700">
+                                        Page <span className="font-semibold">{currentPatternPage}</span> of <span className="font-semibold">{totalPages}</span>
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            if (currentPatternPage < totalPages) {
+                                                setCurrentPatternPage(currentPatternPage + 1);
+                                            }
+                                        }}
+                                        disabled={currentPatternPage === totalPages}
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            );
+                        })()}
+                    </div>
                 </div>
             </div>
 
             {/* Section 2: Drafted Regex Patterns */}
             <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Drafted Regex Patterns</h3>
-                {renderPatternList(draftedPatterns, "drafted")}
+                {renderPatternDropdown(
+                    draftedPatterns,
+                    "drafted",
+                    draftedDropdownOpen,
+                    setDraftedDropdownOpen,
+                    draftedPage,
+                    setDraftedPage,
+                    () => {
+                        setRejectedDropdownOpen(false);
+                        setAcceptedDropdownOpen(false);
+                    }
+                )}
             </div>
 
             {/* Section 3: Rejected Regex Patterns */}
             <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Rejected Regex Patterns</h3>
-                {renderPatternList(rejectedPatterns, "rejected")}
+                {renderPatternDropdown(
+                    rejectedPatterns,
+                    "rejected",
+                    rejectedDropdownOpen,
+                    setRejectedDropdownOpen,
+                    rejectedPage,
+                    setRejectedPage,
+                    () => {
+                        setDraftedDropdownOpen(false);
+                        setAcceptedDropdownOpen(false);
+                    }
+                )}
             </div>
 
             {/* Section 4: Accepted Regex Patterns */}
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-white rounded-lg shadow-md p-6 mb-5">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Accepted Regex Patterns</h3>
-                {renderPatternList(acceptedPatterns, "accepted")}
+                {renderPatternDropdown(
+                    acceptedPatterns,
+                    "accepted",
+                    acceptedDropdownOpen,
+                    setAcceptedDropdownOpen,
+                    acceptedPage,
+                    setAcceptedPage,
+                    () => {
+                        setDraftedDropdownOpen(false);
+                        setRejectedDropdownOpen(false);
+                    }
+                )}
             </div>
+
+            {/* Pattern Details Dialog */}
+            {showPatternDialog && selectedPattern && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex items-start justify-between mb-4">
+                                <h3 className="text-2xl font-bold text-gray-900">Pattern Details</h3>
+                                <button
+                                    onClick={() => {
+                                        setShowPatternDialog(false);
+                                        setSelectedPattern(null);
+                                    }}
+                                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            {/* Status Badge */}
+                            <div className="mb-6">
+                                <span className={`px-4 py-2 inline-flex text-sm leading-5 font-semibold rounded-full ${
+                                    ((selectedPattern.status || "").toUpperCase() === "REJECTED" || (selectedPattern.status || "").toUpperCase() === "REJECT")
+                                        ? "bg-red-100 text-red-800 border border-red-300"
+                                        : ((selectedPattern.status || "").toUpperCase() === "APPROVED" || (selectedPattern.status || "").toUpperCase() === "ACCEPTED" || (selectedPattern.status || "").toUpperCase() === "ACCEPT")
+                                        ? "bg-green-100 text-green-800 border border-green-300"
+                                        : "bg-gray-100 text-gray-800 border border-gray-300"
+                                }`}>
+                                    Status: {
+                                        ((selectedPattern.status || "").toUpperCase() === "REJECTED" || (selectedPattern.status || "").toUpperCase() === "REJECT")
+                                            ? "Rejected"
+                                            : ((selectedPattern.status || "").toUpperCase() === "APPROVED" || (selectedPattern.status || "").toUpperCase() === "ACCEPTED" || (selectedPattern.status || "").toUpperCase() === "ACCEPT")
+                                            ? "Approved"
+                                            : ((selectedPattern.status || "").toUpperCase() === "DRAFTED" || (selectedPattern.status || "").toUpperCase() === "DRAFT")
+                                            ? "Drafted"
+                                            : "Pending"
+                                    }
+                                </span>
+                            </div>
+
+                            {/* Pattern Details Grid */}
+                            <div className="space-y-4">
+                                {/* Regex Pattern */}
+                                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Regex Pattern</label>
+                                    <div className="bg-white p-3 rounded border border-gray-300 font-mono text-sm break-all">
+                                        {selectedPattern.regexPattern || selectedPattern.pattern || "N/A"}
+                                    </div>
+                                </div>
+
+                                {/* Message */}
+                                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Message</label>
+                                    <div className="bg-white p-3 rounded border border-gray-300 text-sm break-words">
+                                        {selectedPattern.message || selectedPattern.text || "N/A"}
+                                    </div>
+                                </div>
+
+                                {/* Bank & Merchant Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Bank Name</label>
+                                        <div className="bg-white p-3 rounded border border-gray-300 text-sm">
+                                            {selectedPattern.bankName || "N/A"}
+                                        </div>
+                                    </div>
+
+                                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Bank Address</label>
+                                        <div className="bg-white p-3 rounded border border-gray-300 text-sm">
+                                            {selectedPattern.bankAddress || "N/A"}
+                                        </div>
+                                    </div>
+
+                                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Merchant Name</label>
+                                        <div className="bg-white p-3 rounded border border-gray-300 text-sm">
+                                            {selectedPattern.merchantName || "N/A"}
+                                        </div>
+                                    </div>
+
+                                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Transaction Type</label>
+                                        <div className="bg-white p-3 rounded border border-gray-300 text-sm">
+                                            {selectedPattern.transactionType || "N/A"}
+                                        </div>
+                                    </div>
+
+                                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 md:col-span-2">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Transaction Category</label>
+                                        <div className="bg-white p-3 rounded border border-gray-300 text-sm">
+                                            {selectedPattern.transactionCategory || "N/A"}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="mt-6 flex gap-3 justify-end">
+                                <button
+                                    onClick={() => {
+                                        setShowPatternDialog(false);
+                                        setSelectedPattern(null);
+                                    }}
+                                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handlePastePattern}
+                                    className="px-6 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800 font-medium"
+                                >
+                                    Paste into Fields
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
