@@ -62,7 +62,8 @@ function Login() {
                 setError(response.message || "Login failed");
             }
         } catch (error) {
-            setError(error.response?.data?.message || "Login failed. Please check your credentials.");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Login failed. Please check your credentials.";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }

@@ -45,7 +45,8 @@ const CheckerDashBoard = () => {
                 setApprovedPatterns(approvedResponse.data || []);
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to fetch patterns');
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || 'Failed to fetch patterns';
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -70,11 +71,13 @@ const CheckerDashBoard = () => {
                 setTestResult(response.data);
                 toast.success('Regex tested successfully!');
             } else {
-                toast.error(response.data.message || 'Test failed');
+                const errorMessage = response?.data?.error || response?.data?.message || 'Test failed';
+                toast.error(errorMessage);
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to test regex');
-            setExtractedInfo(null);
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || 'Failed to test regex';
+            toast.error(errorMessage);
+            setTestResult(null);
         } finally {
             setTestLoading(false);
         }
@@ -95,10 +98,12 @@ const CheckerDashBoard = () => {
                 setDialogOpen(false);
                 setSelectedPattern(null);
             } else {
-                toast.error(response?.data?.message || 'Approval failed');
+                const errorMessage = response?.data?.error || response?.data?.message || 'Approval failed';
+                toast.error(errorMessage);
             }
         } catch (error) {
-            toast.error(error?.response?.data?.message || 'Failed to approve pattern');
+            const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.response?.data || 'Failed to approve pattern';
+            toast.error(errorMessage);
         }
     };
 
@@ -117,10 +122,12 @@ const CheckerDashBoard = () => {
                 setDialogOpen(false);
                 setSelectedPattern(null);
             } else {
-                toast.error(response?.data.message || 'Rejection failed');
+                const errorMessage = response?.data?.error || response?.data?.message || 'Rejection failed';
+                toast.error(errorMessage);
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to reject pattern');
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || 'Failed to reject pattern';
+            toast.error(errorMessage);
         }
     };
 

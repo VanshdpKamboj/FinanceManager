@@ -79,10 +79,12 @@ function Home() {
             if (response.data) {
                 setTransactionHistory(response.data || []);
             } else {
-                setHistoryError(response.data.message || "Failed to fetch transaction history");
+                const errorMessage = response?.data?.error || response?.data?.message || "Failed to fetch transaction history";
+                setHistoryError(errorMessage);
             }
         } catch (error) {
-            setHistoryError(error.response?.data?.message || "Failed to fetch transaction history");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Failed to fetch transaction history";
+            setHistoryError(errorMessage);
         } finally {
             setHistoryLoading(false);
         }
@@ -129,10 +131,12 @@ function Home() {
                 // Refresh transaction history after successful extraction
                 fetchTransactionHistory();
             } else {
-                setError(response.data.message || "Failed to extract transaction data");
+                const errorMessage = response?.data?.error || response?.data?.message || "Failed to extract transaction data";
+                setError(errorMessage);
             }
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to process message. Please try again.");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Failed to process message. Please try again.";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }

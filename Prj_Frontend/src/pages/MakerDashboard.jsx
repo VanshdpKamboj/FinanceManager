@@ -314,7 +314,9 @@ function MakerDashboard() {
                 toast("No match found, invalid regex pattern or message");
             }
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to test regex pattern");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Failed to test regex pattern";
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setTestLoading(false);
         }
@@ -373,11 +375,14 @@ function MakerDashboard() {
                 await fetchAllPatterns();
                 setActiveSection("normal");
             } else {
-                toast.error(response?.data?.error || "Failed to submit for approval");
-                setError(response?.data?.error || "Failed to submit for approval");
+                const errorMessage = response?.data?.error || response?.data?.message || "Failed to submit for approval";
+                toast.error(errorMessage);
+                setError(errorMessage);
             }
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to submit for approval");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Failed to submit for approval";
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         } 
@@ -436,11 +441,14 @@ function MakerDashboard() {
                 await fetchAllPatterns();
                 setActiveSection("drafted");
             } else {
-                toast.error(response?.data?.error || "Failed to save as draft");
-                setError(response.data?.error || "Failed to save as draft");
+                const errorMessage = response?.data?.error || response?.data?.message || "Failed to save as draft";
+                toast.error(errorMessage);
+                setError(errorMessage);
             }
         } catch (error) {
-            setError(error.response?.data?.message || "Failed to save as draft");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Failed to save as draft";
+            setError(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }

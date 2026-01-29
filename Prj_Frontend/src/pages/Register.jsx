@@ -46,7 +46,8 @@ function Register() {
                 setError(response.message || "Registration failed");
             }
         } catch (error) {
-            setError(error.response?.data?.message || "Registration failed. Please try again.");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Registration failed. Please try again.";
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
