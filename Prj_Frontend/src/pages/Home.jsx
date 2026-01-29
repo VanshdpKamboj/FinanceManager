@@ -93,8 +93,7 @@ function Home() {
                 }
             );
 
-
-            if (response.data) {
+            if (response.data.matchFound) {
                 setExtractedData(response.data);
                 // Refresh transaction history after successful extraction
                 fetchTransactionHistory();
