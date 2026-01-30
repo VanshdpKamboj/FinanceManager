@@ -153,6 +153,8 @@ $RECYCLE.BIN/
 # Security - ensure no sensitive data is committed
 application-local.properties
 application-dev.properties
+application.properties
+application-test.properties
 *.key
 *.pem
 *.p12
