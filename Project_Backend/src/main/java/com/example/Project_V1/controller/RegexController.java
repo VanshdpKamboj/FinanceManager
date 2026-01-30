@@ -27,8 +27,15 @@ public class RegexController {
     }
 
     @PostMapping("/extract")
-    public RegexResponseDto extractRegex(@RequestBody RegexRequestDto requestDto) {
-        return regexService.extract(requestDto);
+    public ResponseEntity<?> extractRegex(@RequestBody RegexRequestDto requestDto) {
+        try{
+            return ResponseEntity.ok(regexService.extract(requestDto));
+        }
+        catch(Exception e){
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(errorResponse);
+        }
     }
 
     @PostMapping("/save")

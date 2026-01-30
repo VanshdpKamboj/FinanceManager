@@ -275,11 +275,6 @@ function MakerDashboard() {
             return;
         }
 
-        // if (!validateFields()) {
-        //     setError("Please fill in all required fields");
-        //     return;
-        // }
-
         setTestLoading(true);
         setError("");
         setTestResult({
@@ -297,21 +292,15 @@ function MakerDashboard() {
         try {
             const response = await testRegexPattern(
                 regexPattern, 
-                message,
-                // {
-                //     bankAddress,
-                //     bankName,
-                //     merchantName,
-                //     transactionCategory,
-                //     transactionType
-                // }
+                message
             );
 
             if (response?.data?.matchFound) {
                 setTestResult(response.data);
             }
             else{
-                toast("No match found, invalid regex pattern or message");
+                const mess = response?.data?.error || response?.data?.message || "No match found, invalid regex pattern or message";
+                toast.error(mess);
             }
         } catch (error) {
             const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data || "Failed to test regex pattern";
@@ -480,13 +469,13 @@ function MakerDashboard() {
         setTransactionType(pattern.transactionType || "");
         
         // If any fields are missing, try to extract from message
-        if (!pattern.bankAddress || !pattern.bankName || !pattern.merchantName || 
-            !pattern.transactionCategory || !pattern.transactionType) {
-            // Use setTimeout to ensure state updates are complete before extraction
-            setTimeout(() => {
-                extractInfoFromMessage(messageText, false);
-            }, 100);
-        }
+        // if (!pattern.bankAddress || !pattern.bankName || !pattern.merchantName || 
+        //     !pattern.transactionCategory || !pattern.transactionType) {
+        //     // Use setTimeout to ensure state updates are complete before extraction
+        //     setTimeout(() => {
+        //         extractInfoFromMessage(messageText, false);
+        //     }, 100);
+        // }
         
         setFieldErrors({});
 
@@ -515,27 +504,6 @@ function MakerDashboard() {
         setShowPatternDialog(false);
         setSelectedPattern(null);
     };
-
-    // const handleResubmitPattern = async (patternId) => {
-    //     setLoading(true);
-    //     setError("");
-    //     setSuccess("");
-
-    //     try {
-    //         const response = await resubmitPattern(patternId);
-    //         if (response?.data || response.status === 200) {
-    //             setSuccess("Pattern resubmitted for approval successfully!");
-    //             await fetchAllPatterns();
-    //             setActiveSection("normal");
-    //         } else {
-    //             setError(response.data?.message || "Failed to resubmit pattern");
-    //         }
-    //     } catch (error) {
-    //         setError(error.response?.data?.message || "Failed to resubmit pattern");
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
 
     // Render paginated dropdown for patterns
     const renderPatternDropdown = (patterns, type, isOpen, setIsOpen, currentPage, setCurrentPage, closeOtherDropdowns) => {

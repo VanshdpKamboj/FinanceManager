@@ -1,0 +1,106 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > TransactionResponseDto</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.example.Project_V1.dto</a>
+</div>
+
+<h1>Coverage Summary for Class: TransactionResponseDto (com.example.Project_V1.dto)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+</tr>
+<tr>
+  <td class="name">TransactionResponseDto</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package com.example.Project_V1.dto;
+&nbsp;
+&nbsp;import lombok.AllArgsConstructor;
+&nbsp;import lombok.Data;
+&nbsp;import lombok.NoArgsConstructor;
+&nbsp;
+&nbsp;import java.math.BigDecimal;
+&nbsp;import java.time.LocalDateTime;
+&nbsp;
+&nbsp;@Data
+&nbsp;@NoArgsConstructor
+&nbsp;@AllArgsConstructor
+&nbsp;public class TransactionResponseDto {
+&nbsp;    private Long id;
+&nbsp;    private Long userId;
+&nbsp;    private String accountNumber;
+&nbsp;    private String transactionType;
+&nbsp;    private BigDecimal amount;
+&nbsp;    private String date;
+&nbsp;    private String via;
+&nbsp;    private String to;
+&nbsp;    private BigDecimal availableBalance;
+&nbsp;    private String referenceNumber;
+&nbsp;    private String category;
+&nbsp;    private String notes;
+&nbsp;    private String tags;
+&nbsp;    private String originalMessage;
+&nbsp;    private Boolean isRecurring;
+&nbsp;    private String merchantName;
+&nbsp;    private String location;
+&nbsp;    private String currency;
+&nbsp;    private Boolean isVerified;
+&nbsp;    private Long regexPatternId;
+&nbsp;    private String bankAddress;
+&nbsp;    private LocalDateTime createdAt;
+&nbsp;    private LocalDateTime updatedAt;
+&nbsp;    private boolean matchFound; // Indicates if extraction was successful
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-01-30 01:19</div>
+</div>
+</body>
+</html>

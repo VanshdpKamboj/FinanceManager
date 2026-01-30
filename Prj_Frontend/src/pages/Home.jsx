@@ -782,7 +782,7 @@ function Home() {
                                                     {getTransactionIcon(transaction.transactionType)}
                                                     <div className="flex-1">
                                                         <p className="text-base font-semibold text-gray-900">
-                                                            Paid to {transaction.to || transaction.merchantName || 'N/A'}
+                                                            {transaction.to || transaction.merchantName || 'N/A'}
                                                         </p>
                                                         <p className="text-sm text-gray-500 mt-1">
                                                             {transaction.date || 'N/A'}

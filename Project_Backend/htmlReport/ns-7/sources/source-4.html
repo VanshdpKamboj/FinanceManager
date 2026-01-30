@@ -1,0 +1,140 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > TransactionService</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.example.Project_V1.service</a>
+</div>
+
+<h1>Coverage Summary for Class: TransactionService (com.example.Project_V1.service)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+</tr>
+<tr>
+  <td class="name">TransactionService</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package com.example.Project_V1.service;
+&nbsp;
+&nbsp;import com.example.Project_V1.dto.BulkMessageProcessRequestDto;
+&nbsp;import com.example.Project_V1.dto.BulkMessageProcessResponseDto;
+&nbsp;import com.example.Project_V1.dto.TransactionMessageRequestDto;
+&nbsp;import com.example.Project_V1.dto.TransactionResponseDto;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;public interface TransactionService {
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Process a message and extract transaction details using approved regex patterns
+&nbsp;     * @param requestDto Contains the message and userId
+&nbsp;     * @return TransactionResponseDto with extracted data and saved transaction
+&nbsp;     */
+&nbsp;    TransactionResponseDto processMessage(TransactionMessageRequestDto requestDto);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Process each message in its own separate transaction to avoid rollback-only errors
+&nbsp;     * @param requestDto Contains the message and userId
+&nbsp;     * @return TransactionResponseDto with extracted data and saved transaction
+&nbsp;     */
+&nbsp;    TransactionResponseDto processMessageInNewTransaction(TransactionMessageRequestDto requestDto);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Process multiple messages in bulk
+&nbsp;     * @param requestDto Contains userId and list of message-bankAddress pairs
+&nbsp;     * @return BulkMessageProcessResponseDto with summary and details of all processed messages
+&nbsp;     */
+&nbsp;    BulkMessageProcessResponseDto processBulkMessages(BulkMessageProcessRequestDto requestDto);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Get all transactions for a specific user
+&nbsp;     */
+&nbsp;    List&lt;TransactionResponseDto&gt; getUserTransactions(Long userId);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Get transactions by type (credited/debited)
+&nbsp;     */
+&nbsp;    List&lt;TransactionResponseDto&gt; getUserTransactionsByType(Long userId, String transactionType);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Get transactions by category
+&nbsp;     */
+&nbsp;    List&lt;TransactionResponseDto&gt; getUserTransactionsByCategory(Long userId, String category);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Get transaction by ID
+&nbsp;     */
+&nbsp;    TransactionResponseDto getTransactionById(Long id);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Update transaction (for adding category, notes, tags, etc.)
+&nbsp;     */
+&nbsp;    TransactionResponseDto updateTransaction(Long id, TransactionResponseDto updateDto);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Delete transaction
+&nbsp;     */
+&nbsp;    void deleteTransaction(Long id);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Get unverified transactions
+&nbsp;     */
+&nbsp;    List&lt;TransactionResponseDto&gt; getUnverifiedTransactions(Long userId);
+&nbsp;    
+&nbsp;    /**
+&nbsp;     * Mark transaction as verified
+&nbsp;     */
+&nbsp;    TransactionResponseDto verifyTransaction(Long id);
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-01-30 01:19</div>
+</div>
+</body>
+</html>

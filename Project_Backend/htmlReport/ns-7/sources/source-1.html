@@ -1,0 +1,472 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > RegexServiceImpl</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.example.Project_V1.service</a>
+</div>
+
+<h1>Coverage Summary for Class: RegexServiceImpl (com.example.Project_V1.service)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Branch, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">RegexServiceImpl</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (14/14)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    54.9%
+  </span>
+  <span class="absValue">
+    (56/102)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.6%
+  </span>
+  <span class="absValue">
+    (139/141)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">RegexServiceImpl$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (15/15)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    54.9%
+  </span>
+  <span class="absValue">
+    (56/102)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.6%
+  </span>
+  <span class="absValue">
+    (140/142)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package com.example.Project_V1.service;
+&nbsp;
+&nbsp;import com.example.Project_V1.dto.RegexLogDto;
+&nbsp;import com.example.Project_V1.dto.RegexRequestDto;
+&nbsp;import com.example.Project_V1.dto.RegexResponseDto;
+&nbsp;import com.example.Project_V1.dto.RegexSaveRequestDto;
+&nbsp;import com.example.Project_V1.dto.StatusUpdateRequestDto;
+&nbsp;import com.example.Project_V1.entity.RegexLog;
+&nbsp;import com.example.Project_V1.enums.RegexPatternStatus;
+&nbsp;import com.example.Project_V1.repository.RegexLogRepository;
+&nbsp;import org.springframework.stereotype.Service;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;import java.util.regex.*;
+&nbsp;import java.util.stream.Collectors;
+&nbsp;
+&nbsp;@Service
+&nbsp;public class RegexServiceImpl implements RegexService {
+&nbsp;
+&nbsp;    private final RegexLogRepository regexLogRepository;
+&nbsp;
+<b class="fc">&nbsp;    public RegexServiceImpl(RegexLogRepository regexLogRepository) {</b>
+<b class="fc">&nbsp;        this.regexLogRepository = regexLogRepository;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public RegexResponseDto extract(RegexRequestDto requestDto) {
+&nbsp;        // Validate required field
+<b class="fc">&nbsp;        if (requestDto.getPattern() == null || requestDto.getPattern().trim().isEmpty()) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Pattern is required and cannot be empty&quot;);</b>
+&nbsp;        }
+&nbsp;
+&nbsp;        Pattern pattern;
+&nbsp;        try {
+<b class="fc">&nbsp;            pattern = Pattern.compile(requestDto.getPattern(), Pattern.CASE_INSENSITIVE);</b>
+&nbsp;        } catch (PatternSyntaxException e) {
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Invalid regex pattern&quot;);</b>
+&nbsp;        }
+&nbsp;
+&nbsp;        // Normalize text field
+<b class="pc">&nbsp;        String text = (requestDto.getText() != null &amp;&amp; !requestDto.getText().trim().isEmpty()) </b>
+<b class="fc">&nbsp;                ? requestDto.getText() : &quot;&quot;;</b>
+&nbsp;
+<b class="fc">&nbsp;        Matcher matcher = pattern.matcher(text);</b>
+<b class="fc">&nbsp;        RegexResponseDto response = new RegexResponseDto();</b>
+&nbsp;
+<b class="fc">&nbsp;        boolean matchFound = matcher.find();</b>
+<b class="fc">&nbsp;        response.setMatchFound(matchFound);</b>
+&nbsp;
+<b class="fc">&nbsp;        if (matchFound) {</b>
+<b class="fc">&nbsp;            response.setAccountNumber(getGroup(matcher, &quot;accountNumber&quot;));</b>
+<b class="fc">&nbsp;            response.setTransactionType(getGroup(matcher, &quot;transactionType&quot;));</b>
+<b class="fc">&nbsp;            response.setAmount(getGroup(matcher, &quot;amount&quot;));</b>
+<b class="fc">&nbsp;            response.setDate(getGroup(matcher, &quot;date&quot;));</b>
+<b class="fc">&nbsp;            response.setVia(getGroup(matcher, &quot;via&quot;));</b>
+<b class="fc">&nbsp;            response.setTo(getGroup(matcher, &quot;to&quot;));</b>
+<b class="fc">&nbsp;            response.setAvailableBalance(getGroup(matcher, &quot;availableBalance&quot;));</b>
+<b class="fc">&nbsp;            response.setReferenceNumber(getGroup(matcher, &quot;referenceNumber&quot;));</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        return response;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public RegexLogDto saveRegexPattern(RegexSaveRequestDto requestDto) {
+&nbsp;        // Validate required fields
+<b class="pc">&nbsp;        if (requestDto.getPattern() == null || requestDto.getPattern().trim().isEmpty()) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Pattern is required and cannot be empty&quot;);</b>
+&nbsp;        }
+&nbsp;
+&nbsp;        // Normalize optional fields to null if empty
+<b class="fc">&nbsp;        String pattern = requestDto.getPattern().trim();</b>
+<b class="pc">&nbsp;        String text = (requestDto.getText() != null &amp;&amp; !requestDto.getText().trim().isEmpty()) </b>
+<b class="fc">&nbsp;                ? requestDto.getText().trim() : null;</b>
+<b class="pc">&nbsp;        String bankAddress = (requestDto.getBankAddress() != null &amp;&amp; !requestDto.getBankAddress().trim().isEmpty()) </b>
+<b class="fc">&nbsp;                ? requestDto.getBankAddress().trim() : null;</b>
+<b class="pc">&nbsp;        String bankName = (requestDto.getBankName() != null &amp;&amp; !requestDto.getBankName().trim().isEmpty()) </b>
+<b class="fc">&nbsp;                ? requestDto.getBankName().trim() : null;</b>
+<b class="pc">&nbsp;        String transactionType = (requestDto.getTransactionType() != null &amp;&amp; !requestDto.getTransactionType().trim().isEmpty()) </b>
+<b class="fc">&nbsp;                ? requestDto.getTransactionType().trim() : null;</b>
+<b class="pc">&nbsp;        String transactionCategory = (requestDto.getTransactionCategory() != null &amp;&amp; !requestDto.getTransactionCategory().trim().isEmpty()) </b>
+<b class="fc">&nbsp;                ? requestDto.getTransactionCategory().trim() : null;</b>
+<b class="pc">&nbsp;        String merchantName = (requestDto.getMerchantName() != null &amp;&amp; !requestDto.getMerchantName().trim().isEmpty()) </b>
+<b class="fc">&nbsp;                ? requestDto.getMerchantName().trim() : null;</b>
+&nbsp;
+&nbsp;        // Validate the regex pattern
+&nbsp;        try {
+<b class="fc">&nbsp;            Pattern.compile(pattern);</b>
+&nbsp;        } catch (PatternSyntaxException e) {
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Invalid regex pattern: &quot; + e.getMessage());</b>
+&nbsp;        }
+&nbsp;
+&nbsp;        // Check if ID is provided and pattern exists
+<b class="fc">&nbsp;        if (requestDto.getId() &gt; 0) {</b>
+<b class="fc">&nbsp;            RegexLog existingLog = regexLogRepository.findById((long)requestDto.getId())</b>
+<b class="fc">&nbsp;                    .orElse(null);</b>
+&nbsp;
+<b class="pc">&nbsp;            if (existingLog != null) {</b>
+&nbsp;                // Update only the status
+<b class="pc">&nbsp;                RegexPatternStatus newStatus = requestDto.getStatus() != null</b>
+<b class="fc">&nbsp;                        ? requestDto.getStatus()</b>
+<b class="fc">&nbsp;                        : RegexPatternStatus.DRAFT;</b>
+&nbsp;
+<b class="pc">&nbsp;                if(requestDto.getStatus() != null &amp;&amp; existingLog.getStatus() != null &amp;&amp; requestDto.getStatus() == existingLog.getStatus()){</b>
+<b class="fc">&nbsp;                    throw new IllegalArgumentException(&quot;Pattern already exists in database&quot;);</b>
+&nbsp;                }
+<b class="fc">&nbsp;                existingLog.setStatus(newStatus);</b>
+<b class="fc">&nbsp;                RegexLog updatedLog = regexLogRepository.save(existingLog);</b>
+<b class="fc">&nbsp;                return convertToDto(updatedLog);</b>
+&nbsp;            }
+&nbsp;        }
+&nbsp;        else{
+<b class="fc">&nbsp;            if (regexLogRepository.existsByPattern(pattern, bankAddress)) {</b>
+<b class="fc">&nbsp;                throw new IllegalArgumentException(&quot;Pattern already exists in database&quot;);</b>
+&nbsp;            }
+&nbsp;
+<b class="pc">&nbsp;            if (text != null &amp;&amp; regexLogRepository.existsByText(text, bankAddress)) {</b>
+<b class="fc">&nbsp;                throw new IllegalArgumentException(&quot;Message already exists in database&quot;);</b>
+&nbsp;            }
+&nbsp;        }
+&nbsp;
+&nbsp;
+&nbsp;
+&nbsp;        // Default to DRAFT if no status provided
+<b class="pc">&nbsp;        RegexPatternStatus status = requestDto.getStatus() != null</b>
+<b class="fc">&nbsp;                ? requestDto.getStatus()</b>
+<b class="fc">&nbsp;                : RegexPatternStatus.DRAFT;</b>
+&nbsp;
+&nbsp;        // Test if pattern matches the text (if text is provided)
+<b class="fc">&nbsp;        boolean matchFound = false;</b>
+<b class="pc">&nbsp;        if (text != null) {</b>
+<b class="fc">&nbsp;            Pattern compiledPattern = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);</b>
+<b class="fc">&nbsp;            Matcher matcher = compiledPattern.matcher(text);</b>
+<b class="fc">&nbsp;            matchFound = matcher.find();</b>
+&nbsp;        }
+&nbsp;
+<b class="pc">&nbsp;        if(!matchFound &amp;&amp; text != null){</b>
+<b class="fc">&nbsp;            throw new Error(&quot;The regex pattern doesn&#39;t extract the message information&quot;);</b>
+&nbsp;        }
+&nbsp;        
+<b class="fc">&nbsp;        RegexLog log = new RegexLog(</b>
+&nbsp;                pattern,
+&nbsp;                text,
+&nbsp;                matchFound,
+&nbsp;                status,
+&nbsp;                bankAddress,
+&nbsp;                bankName,
+&nbsp;                transactionType,
+&nbsp;                transactionCategory,
+&nbsp;                merchantName
+&nbsp;        );
+&nbsp;
+<b class="fc">&nbsp;        RegexLog savedLog = regexLogRepository.save(log);</b>
+<b class="fc">&nbsp;        return convertToDto(savedLog);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;RegexLogDto&gt; getAllDraftedPatternsAndMessages() {
+<b class="fc">&nbsp;        List&lt;RegexLog&gt; logs = regexLogRepository.findByStatusOrderByCreatedAtDesc(RegexPatternStatus.DRAFT);</b>
+<b class="fc">&nbsp;        return logs.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;RegexLogDto&gt; getAllRejectedPatternsAndMessages() {
+<b class="fc">&nbsp;        List&lt;RegexLog&gt; logs = regexLogRepository.findByStatusOrderByCreatedAtDesc(RegexPatternStatus.REJECTED);</b>
+<b class="fc">&nbsp;        return logs.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;RegexLogDto&gt; getAllApprovedPatternsAndMessages() {
+<b class="fc">&nbsp;        List&lt;RegexLog&gt; logs = regexLogRepository.findByStatusOrderByCreatedAtDesc(RegexPatternStatus.APPROVED);</b>
+<b class="fc">&nbsp;        return logs.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;RegexLogDto&gt; getAllPendingPatternsAndMessages() {
+<b class="fc">&nbsp;        List&lt;RegexLog&gt; logs = regexLogRepository.findByStatusOrderByCreatedAtDesc(RegexPatternStatus.PENDING);</b>
+<b class="fc">&nbsp;        return logs.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Safe named-group extraction.
+&nbsp;     * Returns null if group does not exist or is not matched.
+&nbsp;     */
+&nbsp;//    private String getGroup(Matcher matcher, String groupName) {
+&nbsp;//        if(matcher.group(groupName) != null){
+&nbsp;//            return matcher.group(groupName);
+&nbsp;//        }
+&nbsp;//        return &quot;&quot;;
+&nbsp;//    }
+&nbsp;
+&nbsp;    private String getGroup(Matcher matcher, String name) {
+&nbsp;        try {
+<b class="fc">&nbsp;            String value = matcher.group(name);</b>
+<b class="pc">&nbsp;            return (value != null &amp;&amp; !value.isBlank()) ? value.trim() : null;</b>
+&nbsp;        } catch (IllegalArgumentException e) {
+<b class="fc">&nbsp;            System.out.println(&quot;This is illegal &quot; + e);</b>
+<b class="fc">&nbsp;            return null;</b>
+&nbsp;        }
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Convert RegexLog entity to DTO
+&nbsp;     */
+&nbsp;    private RegexLogDto convertToDto(RegexLog log) {
+<b class="fc">&nbsp;        RegexLogDto dto = new RegexLogDto();</b>
+<b class="fc">&nbsp;        dto.setId(log.getId());</b>
+<b class="fc">&nbsp;        dto.setPattern(log.getPattern());</b>
+<b class="fc">&nbsp;        dto.setText(log.getText());</b>
+<b class="fc">&nbsp;        dto.setMatchFound(log.isMatchFound());</b>
+<b class="fc">&nbsp;        dto.setStatus(log.getStatus());</b>
+<b class="fc">&nbsp;        dto.setCreatedAt(log.getCreatedAt());</b>
+<b class="fc">&nbsp;        dto.setUpdatedAt(log.getUpdatedAt());</b>
+<b class="fc">&nbsp;        dto.setBankAddress(log.getBankAddress());</b>
+<b class="fc">&nbsp;        dto.setBankName(log.getBankName());</b>
+<b class="fc">&nbsp;        dto.setTransactionType(log.getTransactionType());</b>
+<b class="fc">&nbsp;        dto.setTransactionCategory(log.getTransactionCategory());</b>
+<b class="fc">&nbsp;        dto.setMerchantName(log.getMerchantName());</b>
+<b class="fc">&nbsp;        return dto;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public RegexLogDto changePendingToApproved(Long id) {
+<b class="fc">&nbsp;        RegexLog log = regexLogRepository.findById(id)</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Regex pattern not found with id: &quot; + id));</b>
+&nbsp;        
+<b class="fc">&nbsp;        if (log.getStatus() != RegexPatternStatus.PENDING) {</b>
+<b class="fc">&nbsp;            throw new IllegalStateException(&quot;Can only approve patterns with PENDING status. Current status: &quot; + log.getStatus());</b>
+&nbsp;        }
+&nbsp;        
+<b class="fc">&nbsp;        log.setStatus(RegexPatternStatus.APPROVED);</b>
+<b class="fc">&nbsp;        RegexLog updatedLog = regexLogRepository.save(log);</b>
+<b class="fc">&nbsp;        return convertToDto(updatedLog);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public RegexLogDto changePendingToRejected(Long id) {
+<b class="fc">&nbsp;        RegexLog log = regexLogRepository.findById(id)</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Regex pattern not found with id: &quot; + id));</b>
+&nbsp;        
+<b class="fc">&nbsp;        if (log.getStatus() == RegexPatternStatus.APPROVED) {</b>
+<b class="fc">&nbsp;            throw new IllegalStateException(&quot;Can&#39;t only reject patterns with APPROVED status. Current status: &quot; + log.getStatus());</b>
+&nbsp;        }
+&nbsp;        
+<b class="fc">&nbsp;        log.setStatus(RegexPatternStatus.REJECTED);</b>
+<b class="fc">&nbsp;        RegexLog updatedLog = regexLogRepository.save(log);</b>
+<b class="fc">&nbsp;        return convertToDto(updatedLog);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public RegexLogDto updateStatus(StatusUpdateRequestDto requestDto) {
+<b class="fc">&nbsp;        if (requestDto.getId() == null) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;ID cannot be null&quot;);</b>
+&nbsp;        }
+&nbsp;        
+<b class="fc">&nbsp;        if (requestDto.getNewStatus() == null) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;New status cannot be null&quot;);</b>
+&nbsp;        }
+&nbsp;        
+<b class="fc">&nbsp;        RegexLog log = regexLogRepository.findById(requestDto.getId())</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Regex pattern not found with id: &quot; + requestDto.getId()));</b>
+&nbsp;        
+<b class="fc">&nbsp;        RegexPatternStatus currentStatus = log.getStatus();</b>
+<b class="fc">&nbsp;        RegexPatternStatus newStatus = requestDto.getNewStatus();</b>
+&nbsp;        
+&nbsp;        // Validate state transitions
+<b class="fc">&nbsp;        validateStatusTransition(currentStatus, newStatus);</b>
+&nbsp;        
+<b class="fc">&nbsp;        log.setStatus(newStatus);</b>
+<b class="fc">&nbsp;        RegexLog updatedLog = regexLogRepository.save(log);</b>
+<b class="fc">&nbsp;        return convertToDto(updatedLog);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public RegexLogDto getRegexPatternById(Long id) {
+<b class="fc">&nbsp;        RegexLog log = regexLogRepository.findById(id)</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Regex pattern not found with id: &quot; + id));</b>
+<b class="fc">&nbsp;        return convertToDto(log);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Validates if a status transition is allowed
+&nbsp;     * Valid transitions:
+&nbsp;     * - DRAFT -&gt; PENDING
+&nbsp;     * - PENDING -&gt; APPROVED
+&nbsp;     * - PENDING -&gt; REJECTED
+&nbsp;     * - APPROVED -&gt; REJECTED
+&nbsp;     * - REJECTED -&gt; PENDING (for re-review)
+&nbsp;     * - DRAFT -&gt; REJECTED (direct rejection)
+&nbsp;     */
+&nbsp;    private void validateStatusTransition(RegexPatternStatus currentStatus, RegexPatternStatus newStatus) {
+<b class="fc">&nbsp;        if (currentStatus == newStatus) {</b>
+<b class="fc">&nbsp;            throw new IllegalStateException(&quot;New status must be different from current status&quot;);</b>
+&nbsp;        }
+&nbsp;        
+<b class="pc">&nbsp;        boolean isValidTransition = switch (currentStatus) {</b>
+<b class="pc">&nbsp;            case DRAFT -&gt; newStatus == RegexPatternStatus.PENDING || </b>
+&nbsp;                         newStatus == RegexPatternStatus.REJECTED;
+<b class="pc">&nbsp;            case PENDING -&gt; newStatus == RegexPatternStatus.APPROVED || </b>
+&nbsp;                           newStatus == RegexPatternStatus.REJECTED ||
+&nbsp;                           newStatus == RegexPatternStatus.DRAFT;
+<b class="nc">&nbsp;            case APPROVED -&gt; newStatus == RegexPatternStatus.REJECTED ||</b>
+&nbsp;                            newStatus == RegexPatternStatus.PENDING;
+<b class="nc">&nbsp;            case REJECTED -&gt; newStatus == RegexPatternStatus.PENDING ||</b>
+&nbsp;                            newStatus == RegexPatternStatus.DRAFT;
+&nbsp;        };
+&nbsp;        
+<b class="fc">&nbsp;        if (!isValidTransition) {</b>
+<b class="fc">&nbsp;            throw new IllegalStateException(</b>
+<b class="fc">&nbsp;                String.format(&quot;Invalid status transition from %s to %s&quot;, currentStatus, newStatus)</b>
+&nbsp;            );
+&nbsp;        }
+&nbsp;    }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-01-30 01:19</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,574 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > TransactionServiceImpl</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.example.Project_V1.service</a>
+</div>
+
+<h1>Coverage Summary for Class: TransactionServiceImpl (com.example.Project_V1.service)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Branch, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">TransactionServiceImpl</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (18/18)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    56.6%
+  </span>
+  <span class="absValue">
+    (60/106)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.2%
+  </span>
+  <span class="absValue">
+    (198/217)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">TransactionServiceImpl$$SpringCGLIB$$0</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (18/18)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    56.6%
+  </span>
+  <span class="absValue">
+    (60/106)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.2%
+  </span>
+  <span class="absValue">
+    (198/217)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package com.example.Project_V1.service;
+&nbsp;
+&nbsp;import com.example.Project_V1.dto.BulkMessageProcessRequestDto;
+&nbsp;import com.example.Project_V1.dto.BulkMessageProcessResponseDto;
+&nbsp;import com.example.Project_V1.dto.TransactionExtractionResultDto;
+&nbsp;import com.example.Project_V1.dto.TransactionMessageRequestDto;
+&nbsp;import com.example.Project_V1.dto.TransactionResponseDto;
+&nbsp;import com.example.Project_V1.entity.RegexLog;
+&nbsp;import com.example.Project_V1.entity.Transaction;
+&nbsp;import com.example.Project_V1.entity.User;
+&nbsp;import com.example.Project_V1.enums.RegexPatternStatus;
+&nbsp;import com.example.Project_V1.repository.RegexLogRepository;
+&nbsp;import com.example.Project_V1.repository.TransactionRepository;
+&nbsp;import com.example.Project_V1.repository.UserRepository;
+&nbsp;import org.springframework.stereotype.Service;
+&nbsp;import org.springframework.transaction.annotation.Propagation;
+&nbsp;import org.springframework.transaction.annotation.Transactional;
+&nbsp;
+&nbsp;import java.math.BigDecimal;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;import java.util.regex.Matcher;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;import java.util.stream.Collectors;
+&nbsp;
+&nbsp;@Service
+&nbsp;public class TransactionServiceImpl implements TransactionService {
+&nbsp;
+&nbsp;    private final TransactionRepository transactionRepository;
+&nbsp;    private final RegexLogRepository regexLogRepository;
+&nbsp;    private final UserRepository userRepository;
+&nbsp;
+&nbsp;    public TransactionServiceImpl(TransactionRepository transactionRepository,
+&nbsp;                                  RegexLogRepository regexLogRepository,
+<b class="fc">&nbsp;                                  UserRepository userRepository) {</b>
+<b class="fc">&nbsp;        this.transactionRepository = transactionRepository;</b>
+<b class="fc">&nbsp;        this.regexLogRepository = regexLogRepository;</b>
+<b class="fc">&nbsp;        this.userRepository = userRepository;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    @Transactional
+&nbsp;    public TransactionResponseDto processMessage(TransactionMessageRequestDto requestDto) {
+&nbsp;        // Validate user exists
+<b class="fc">&nbsp;        User user = userRepository.findById(requestDto.getUserId())</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;User not found with id: &quot; + requestDto.getUserId()));</b>
+&nbsp;
+&nbsp;        // Validate bankAddress is provided
+<b class="pc">&nbsp;        if (requestDto.getBankAddress() == null || requestDto.getBankAddress().isBlank()) {</b>
+<b class="nc">&nbsp;            throw new IllegalArgumentException(&quot;Bank address is required for processing transactions&quot;);</b>
+&nbsp;        }
+&nbsp;
+&nbsp;        // Get all approved regex patterns for the specific bank address
+<b class="fc">&nbsp;        List&lt;RegexLog&gt; approvedPatterns = regexLogRepository</b>
+<b class="fc">&nbsp;                .findByStatusAndBankAddressOrderByCreatedAtDesc(RegexPatternStatus.APPROVED, requestDto.getBankAddress());</b>
+&nbsp;
+<b class="fc">&nbsp;        if (approvedPatterns.isEmpty()) {</b>
+<b class="fc">&nbsp;            throw new IllegalStateException(&quot;No approved regex patterns found for bank address: &quot; + requestDto.getBankAddress() + </b>
+&nbsp;                    &quot;. Please add and approve regex patterns for this bank first.&quot;);
+&nbsp;        }
+&nbsp;
+&nbsp;        // Try each approved pattern until a match is found
+<b class="fc">&nbsp;        TransactionExtractionResultDto extractionResult = null;</b>
+<b class="fc">&nbsp;        for (RegexLog regexLog : approvedPatterns) {</b>
+<b class="fc">&nbsp;            extractionResult = tryExtractWithPattern(requestDto.getMessage(), regexLog);</b>
+<b class="fc">&nbsp;            if (extractionResult.isMatchFound()) {</b>
+&nbsp;                // First match found, use it
+&nbsp;                break;
+&nbsp;            }
+&nbsp;        }
+&nbsp;
+&nbsp;        // If no match found, return response indicating no match
+<b class="pc">&nbsp;        if (extractionResult == null || !extractionResult.isMatchFound()) {</b>
+<b class="fc">&nbsp;            TransactionResponseDto response = new TransactionResponseDto();</b>
+<b class="fc">&nbsp;            response.setMatchFound(false);</b>
+<b class="fc">&nbsp;            response.setOriginalMessage(requestDto.getMessage());</b>
+<b class="fc">&nbsp;            response.setBankAddress(requestDto.getBankAddress());</b>
+<b class="fc">&nbsp;            return response;</b>
+&nbsp;        }
+&nbsp;
+&nbsp;        // Create and save transaction entity
+<b class="fc">&nbsp;        Transaction transaction = createTransactionFromExtraction(extractionResult, user, requestDto.getBankAddress());</b>
+<b class="fc">&nbsp;        Transaction savedTransaction = transactionRepository.save(transaction);</b>
+&nbsp;
+<b class="fc">&nbsp;        return convertToDto(savedTransaction);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Process each message in its own separate transaction to avoid rollback-only errors
+&nbsp;     */
+&nbsp;    @Transactional(propagation = Propagation.REQUIRES_NEW)
+&nbsp;    public TransactionResponseDto processMessageInNewTransaction(TransactionMessageRequestDto requestDto) {
+<b class="fc">&nbsp;        return processMessage(requestDto);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public BulkMessageProcessResponseDto processBulkMessages(BulkMessageProcessRequestDto requestDto) {
+<b class="fc">&nbsp;        BulkMessageProcessResponseDto response = new BulkMessageProcessResponseDto();</b>
+<b class="fc">&nbsp;        List&lt;TransactionResponseDto&gt; successfulTransactions = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;        List&lt;BulkMessageProcessResponseDto.FailedMessageDto&gt; failedMessages = new ArrayList&lt;&gt;();</b>
+&nbsp;
+&nbsp;        // Validate user exists first
+&nbsp;        try {
+<b class="fc">&nbsp;            userRepository.findById(requestDto.getUserId())</b>
+<b class="fc">&nbsp;                    .orElseThrow(() -&gt; new IllegalArgumentException(&quot;User not found with id: &quot; + requestDto.getUserId()));</b>
+&nbsp;        } catch (IllegalArgumentException e) {
+<b class="pc">&nbsp;            response.setTotalMessages(requestDto.getMessages() != null ? requestDto.getMessages().size() : 0);</b>
+<b class="fc">&nbsp;            response.setSuccessfullyProcessed(0);</b>
+<b class="fc">&nbsp;            response.setFailed(response.getTotalMessages());</b>
+<b class="fc">&nbsp;            response.setSuccessfulTransactions(new ArrayList&lt;&gt;());</b>
+<b class="fc">&nbsp;            response.setFailedMessages(new ArrayList&lt;&gt;());</b>
+&nbsp;            
+&nbsp;            // Mark all messages as failed due to invalid user
+<b class="pc">&nbsp;            if (requestDto.getMessages() != null) {</b>
+<b class="fc">&nbsp;                for (BulkMessageProcessRequestDto.MessageBankAddressPair pair : requestDto.getMessages()) {</b>
+<b class="fc">&nbsp;                    BulkMessageProcessResponseDto.FailedMessageDto failedMsg = new BulkMessageProcessResponseDto.FailedMessageDto();</b>
+<b class="fc">&nbsp;                    failedMsg.setMessage(pair.getMessage());</b>
+<b class="fc">&nbsp;                    failedMsg.setBankAddress(pair.getBankAddress());</b>
+<b class="fc">&nbsp;                    failedMsg.setError(e.getMessage());</b>
+<b class="fc">&nbsp;                    failedMsg.setMatchFound(false);</b>
+<b class="fc">&nbsp;                    response.getFailedMessages().add(failedMsg);</b>
+&nbsp;                }
+&nbsp;            }
+<b class="fc">&nbsp;            return response;</b>
+&nbsp;        }
+&nbsp;
+<b class="pc">&nbsp;        int totalMessages = requestDto.getMessages() != null ? requestDto.getMessages().size() : 0;</b>
+<b class="fc">&nbsp;        response.setTotalMessages(totalMessages);</b>
+&nbsp;
+&nbsp;        // Process each message
+<b class="pc">&nbsp;        if (requestDto.getMessages() != null) {</b>
+<b class="fc">&nbsp;            for (BulkMessageProcessRequestDto.MessageBankAddressPair messagePair : requestDto.getMessages()) {</b>
+&nbsp;                try {
+&nbsp;                    // Create individual request DTO for each message
+<b class="fc">&nbsp;                    TransactionMessageRequestDto singleMessageDto = new TransactionMessageRequestDto();</b>
+<b class="fc">&nbsp;                    singleMessageDto.setMessage(messagePair.getMessage());</b>
+<b class="fc">&nbsp;                    singleMessageDto.setBankAddress(messagePair.getBankAddress());</b>
+<b class="fc">&nbsp;                    singleMessageDto.setUserId(requestDto.getUserId());</b>
+&nbsp;
+&nbsp;                    // Process the message using separate transaction for each message
+<b class="fc">&nbsp;                    TransactionResponseDto transactionResponse = processMessageInNewTransaction(singleMessageDto);</b>
+&nbsp;
+<b class="fc">&nbsp;                    if (transactionResponse.isMatchFound()) {</b>
+<b class="fc">&nbsp;                        successfulTransactions.add(transactionResponse);</b>
+&nbsp;                    } else {
+&nbsp;                        // No match found for this message
+<b class="fc">&nbsp;                        BulkMessageProcessResponseDto.FailedMessageDto failedMsg = new BulkMessageProcessResponseDto.FailedMessageDto();</b>
+<b class="fc">&nbsp;                        failedMsg.setMessage(messagePair.getMessage());</b>
+<b class="fc">&nbsp;                        failedMsg.setBankAddress(messagePair.getBankAddress());</b>
+<b class="fc">&nbsp;                        failedMsg.setError(&quot;No approved regex pattern matched the message&quot;);</b>
+<b class="fc">&nbsp;                        failedMsg.setMatchFound(false);</b>
+<b class="fc">&nbsp;                        failedMessages.add(failedMsg);</b>
+&nbsp;                    }
+&nbsp;                } catch (Exception e) {
+&nbsp;                    // Any error during processing of this message
+<b class="fc">&nbsp;                    BulkMessageProcessResponseDto.FailedMessageDto failedMsg = new BulkMessageProcessResponseDto.FailedMessageDto();</b>
+<b class="fc">&nbsp;                    failedMsg.setMessage(messagePair.getMessage());</b>
+<b class="fc">&nbsp;                    failedMsg.setBankAddress(messagePair.getBankAddress());</b>
+<b class="fc">&nbsp;                    failedMsg.setError(e.getMessage());</b>
+<b class="fc">&nbsp;                    failedMsg.setMatchFound(false);</b>
+<b class="fc">&nbsp;                    failedMessages.add(failedMsg);</b>
+&nbsp;                }
+&nbsp;            }
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        response.setSuccessfullyProcessed(successfulTransactions.size());</b>
+<b class="fc">&nbsp;        response.setFailed(failedMessages.size());</b>
+<b class="fc">&nbsp;        response.setSuccessfulTransactions(successfulTransactions);</b>
+<b class="fc">&nbsp;        response.setFailedMessages(failedMessages);</b>
+&nbsp;
+<b class="fc">&nbsp;        return response;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Try to extract transaction data using a specific regex pattern
+&nbsp;     */
+&nbsp;    private TransactionExtractionResultDto tryExtractWithPattern(String message, RegexLog regexLog) {
+<b class="fc">&nbsp;        TransactionExtractionResultDto result = new TransactionExtractionResultDto();</b>
+<b class="fc">&nbsp;        result.setOriginalMessage(message);</b>
+<b class="fc">&nbsp;        result.setRegexPatternId(regexLog.getId());</b>
+&nbsp;
+&nbsp;        try {
+<b class="fc">&nbsp;            Pattern pattern = Pattern.compile(regexLog.getPattern(), Pattern.CASE_INSENSITIVE);</b>
+<b class="fc">&nbsp;            Matcher matcher = pattern.matcher(message);</b>
+&nbsp;
+<b class="fc">&nbsp;            if (matcher.find()) {</b>
+<b class="fc">&nbsp;                result.setMatchFound(true);</b>
+<b class="fc">&nbsp;                result.setAccountNumber(getGroup(matcher, &quot;accountNumber&quot;));</b>
+<b class="fc">&nbsp;                result.setTransactionType(getGroup(matcher, &quot;transactionType&quot;));</b>
+<b class="fc">&nbsp;                result.setAmount(getGroup(matcher, &quot;amount&quot;));</b>
+<b class="fc">&nbsp;                result.setDate(getGroup(matcher, &quot;date&quot;));</b>
+<b class="fc">&nbsp;                result.setVia(getGroup(matcher, &quot;via&quot;));</b>
+<b class="fc">&nbsp;                result.setTo(getGroup(matcher, &quot;to&quot;));</b>
+<b class="fc">&nbsp;                result.setAvailableBalance(getGroup(matcher, &quot;availableBalance&quot;));</b>
+<b class="fc">&nbsp;                result.setReferenceNumber(getGroup(matcher, &quot;referenceNumber&quot;));</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;                result.setMatchFound(false);</b>
+&nbsp;            }
+&nbsp;        } catch (Exception e) {
+&nbsp;            // Pattern compilation or matching failed
+<b class="nc">&nbsp;            result.setMatchFound(false);</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        return result;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Safe named-group extraction from regex matcher
+&nbsp;     */
+&nbsp;    private String getGroup(Matcher matcher, String name) {
+&nbsp;        try {
+<b class="fc">&nbsp;            String value = matcher.group(name);</b>
+<b class="pc">&nbsp;            return (value != null &amp;&amp; !value.isBlank()) ? value.trim() : null;</b>
+&nbsp;        } catch (IllegalArgumentException e) {
+&nbsp;            // Group name doesn&#39;t exist in pattern
+<b class="fc">&nbsp;            return null;</b>
+&nbsp;        }
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Create Transaction entity from extraction result
+&nbsp;     */
+&nbsp;    private Transaction createTransactionFromExtraction(TransactionExtractionResultDto extractionResult, User user, String bankAddress) {
+<b class="fc">&nbsp;        Transaction transaction = new Transaction();</b>
+<b class="fc">&nbsp;        transaction.setUser(user);</b>
+<b class="fc">&nbsp;        transaction.setOriginalMessage(extractionResult.getOriginalMessage());</b>
+<b class="fc">&nbsp;        transaction.setRegexPatternId(extractionResult.getRegexPatternId());</b>
+<b class="fc">&nbsp;        transaction.setBankAddress(bankAddress);</b>
+&nbsp;        
+&nbsp;        // Set extracted fields
+<b class="fc">&nbsp;        transaction.setAccountNumber(extractionResult.getAccountNumber());</b>
+<b class="fc">&nbsp;        transaction.setTransactionType(extractionResult.getTransactionType());</b>
+<b class="fc">&nbsp;        transaction.setDate(extractionResult.getDate());</b>
+<b class="fc">&nbsp;        transaction.setVia(extractionResult.getVia());</b>
+<b class="fc">&nbsp;        transaction.setTo(extractionResult.getTo());</b>
+<b class="fc">&nbsp;        transaction.setReferenceNumber(extractionResult.getReferenceNumber());</b>
+&nbsp;        
+&nbsp;        // Parse and set amount
+<b class="pc">&nbsp;        if (extractionResult.getAmount() != null) {</b>
+<b class="fc">&nbsp;            transaction.setAmount(parseAmount(extractionResult.getAmount()));</b>
+&nbsp;        }
+&nbsp;        
+&nbsp;        // Parse and set available balance
+<b class="pc">&nbsp;        if (extractionResult.getAvailableBalance() != null) {</b>
+<b class="nc">&nbsp;            transaction.setAvailableBalance(parseAmount(extractionResult.getAvailableBalance()));</b>
+&nbsp;        }
+&nbsp;        
+&nbsp;        // Auto-categorize based on transaction type and other fields
+<b class="fc">&nbsp;        transaction.setCategory(autoCategorize(transaction));</b>
+&nbsp;        
+<b class="fc">&nbsp;        return transaction;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Parse amount string to BigDecimal (handles commas, currency symbols, etc.)
+&nbsp;     */
+&nbsp;    private BigDecimal parseAmount(String amountStr) {
+<b class="pc">&nbsp;        if (amountStr == null || amountStr.isBlank()) {</b>
+<b class="nc">&nbsp;            return null;</b>
+&nbsp;        }
+&nbsp;        
+&nbsp;        try {
+&nbsp;            // Remove currency symbols, commas, and spaces
+<b class="fc">&nbsp;            String cleaned = amountStr.replaceAll(&quot;[₹$,\\s]&quot;, &quot;&quot;);</b>
+<b class="fc">&nbsp;            return new BigDecimal(cleaned);</b>
+&nbsp;        } catch (NumberFormatException e) {
+<b class="nc">&nbsp;            return null;</b>
+&nbsp;        }
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Auto-categorize transaction based on available information
+&nbsp;     */
+&nbsp;    private String autoCategorize(Transaction transaction) {
+&nbsp;        // Simple auto-categorization logic
+&nbsp;        // Can be enhanced with ML or more sophisticated rules
+&nbsp;        
+<b class="fc">&nbsp;        String transactionType = transaction.getTransactionType();</b>
+<b class="fc">&nbsp;        String recipient = transaction.getTo();</b>
+&nbsp;        
+<b class="pc">&nbsp;        if (transactionType != null &amp;&amp; transactionType.toLowerCase().contains(&quot;credit&quot;)) {</b>
+<b class="pc">&nbsp;            if (recipient != null) {</b>
+<b class="nc">&nbsp;                String recipientLower = recipient.toLowerCase();</b>
+<b class="nc">&nbsp;                if (recipientLower.contains(&quot;salary&quot;) || recipientLower.contains(&quot;employer&quot;)) {</b>
+<b class="nc">&nbsp;                    return &quot;Income:Salary&quot;;</b>
+<b class="nc">&nbsp;                } else if (recipientLower.contains(&quot;refund&quot;)) {</b>
+<b class="nc">&nbsp;                    return &quot;Income:Refund&quot;;</b>
+&nbsp;                }
+&nbsp;            }
+<b class="fc">&nbsp;            return &quot;Income:Other&quot;;</b>
+<b class="pc">&nbsp;        } else if (transactionType != null &amp;&amp; transactionType.toLowerCase().contains(&quot;debit&quot;)) {</b>
+<b class="pc">&nbsp;            if (recipient != null) {</b>
+<b class="fc">&nbsp;                String recipientLower = recipient.toLowerCase();</b>
+<b class="pc">&nbsp;                if (recipientLower.contains(&quot;zomato&quot;) || recipientLower.contains(&quot;swiggy&quot;) || </b>
+<b class="pc">&nbsp;                    recipientLower.contains(&quot;restaurant&quot;) || recipientLower.contains(&quot;cafe&quot;)) {</b>
+<b class="nc">&nbsp;                    return &quot;Expense:Food&quot;;</b>
+<b class="pc">&nbsp;                } else if (recipientLower.contains(&quot;uber&quot;) || recipientLower.contains(&quot;ola&quot;) || </b>
+<b class="pc">&nbsp;                          recipientLower.contains(&quot;metro&quot;) || recipientLower.contains(&quot;petrol&quot;)) {</b>
+<b class="nc">&nbsp;                    return &quot;Expense:Transport&quot;;</b>
+<b class="pc">&nbsp;                } else if (recipientLower.contains(&quot;amazon&quot;) || recipientLower.contains(&quot;flipkart&quot;) || </b>
+<b class="pc">&nbsp;                          recipientLower.contains(&quot;shopping&quot;)) {</b>
+<b class="nc">&nbsp;                    return &quot;Expense:Shopping&quot;;</b>
+<b class="pc">&nbsp;                } else if (recipientLower.contains(&quot;electricity&quot;) || recipientLower.contains(&quot;water&quot;) || </b>
+<b class="pc">&nbsp;                          recipientLower.contains(&quot;gas&quot;) || recipientLower.contains(&quot;rent&quot;)) {</b>
+<b class="nc">&nbsp;                    return &quot;Expense:Bills&quot;;</b>
+&nbsp;                }
+&nbsp;            }
+<b class="fc">&nbsp;            return &quot;Expense:Other&quot;;</b>
+&nbsp;        }
+&nbsp;        
+<b class="nc">&nbsp;        return &quot;Uncategorized&quot;;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;TransactionResponseDto&gt; getUserTransactions(Long userId) {
+<b class="fc">&nbsp;        List&lt;Transaction&gt; transactions = transactionRepository.findByUserIdOrderByCreatedAtDesc(userId);</b>
+<b class="fc">&nbsp;        return transactions.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;TransactionResponseDto&gt; getUserTransactionsByType(Long userId, String transactionType) {
+<b class="fc">&nbsp;        List&lt;Transaction&gt; transactions = transactionRepository</b>
+<b class="fc">&nbsp;                .findByUserIdAndTransactionTypeOrderByCreatedAtDesc(userId, transactionType);</b>
+<b class="fc">&nbsp;        return transactions.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;TransactionResponseDto&gt; getUserTransactionsByCategory(Long userId, String category) {
+<b class="fc">&nbsp;        List&lt;Transaction&gt; transactions = transactionRepository</b>
+<b class="fc">&nbsp;                .findByUserIdAndCategoryOrderByCreatedAtDesc(userId, category);</b>
+<b class="fc">&nbsp;        return transactions.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public TransactionResponseDto getTransactionById(Long id) {
+<b class="fc">&nbsp;        Transaction transaction = transactionRepository.findById(id)</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Transaction not found with id: &quot; + id));</b>
+<b class="fc">&nbsp;        return convertToDto(transaction);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    @Transactional
+&nbsp;    public TransactionResponseDto updateTransaction(Long id, TransactionResponseDto updateDto) {
+<b class="fc">&nbsp;        Transaction transaction = transactionRepository.findById(id)</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Transaction not found with id: &quot; + id));</b>
+&nbsp;
+&nbsp;        // Update only modifiable fields
+<b class="pc">&nbsp;        if (updateDto.getCategory() != null) {</b>
+<b class="fc">&nbsp;            transaction.setCategory(updateDto.getCategory());</b>
+&nbsp;        }
+<b class="pc">&nbsp;        if (updateDto.getNotes() != null) {</b>
+<b class="fc">&nbsp;            transaction.setNotes(updateDto.getNotes());</b>
+&nbsp;        }
+<b class="pc">&nbsp;        if (updateDto.getTags() != null) {</b>
+<b class="fc">&nbsp;            transaction.setTags(updateDto.getTags());</b>
+&nbsp;        }
+<b class="pc">&nbsp;        if (updateDto.getIsRecurring() != null) {</b>
+<b class="nc">&nbsp;            transaction.setIsRecurring(updateDto.getIsRecurring());</b>
+&nbsp;        }
+<b class="pc">&nbsp;        if (updateDto.getIsVerified() != null) {</b>
+<b class="nc">&nbsp;            transaction.setIsVerified(updateDto.getIsVerified());</b>
+&nbsp;        }
+<b class="pc">&nbsp;        if (updateDto.getMerchantName() != null) {</b>
+<b class="nc">&nbsp;            transaction.setMerchantName(updateDto.getMerchantName());</b>
+&nbsp;        }
+<b class="pc">&nbsp;        if (updateDto.getLocation() != null) {</b>
+<b class="nc">&nbsp;            transaction.setLocation(updateDto.getLocation());</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        Transaction updatedTransaction = transactionRepository.save(transaction);</b>
+<b class="fc">&nbsp;        return convertToDto(updatedTransaction);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    @Transactional
+&nbsp;    public void deleteTransaction(Long id) {
+<b class="fc">&nbsp;        if (!transactionRepository.existsById(id)) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Transaction not found with id: &quot; + id);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        transactionRepository.deleteById(id);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public List&lt;TransactionResponseDto&gt; getUnverifiedTransactions(Long userId) {
+<b class="fc">&nbsp;        List&lt;Transaction&gt; transactions = transactionRepository</b>
+<b class="fc">&nbsp;                .findByUserIdAndIsVerifiedOrderByCreatedAtDesc(userId, false);</b>
+<b class="fc">&nbsp;        return transactions.stream()</b>
+<b class="fc">&nbsp;                .map(this::convertToDto)</b>
+<b class="fc">&nbsp;                .collect(Collectors.toList());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    @Transactional
+&nbsp;    public TransactionResponseDto verifyTransaction(Long id) {
+<b class="fc">&nbsp;        Transaction transaction = transactionRepository.findById(id)</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new IllegalArgumentException(&quot;Transaction not found with id: &quot; + id));</b>
+&nbsp;        
+<b class="fc">&nbsp;        transaction.setIsVerified(true);</b>
+<b class="fc">&nbsp;        Transaction updatedTransaction = transactionRepository.save(transaction);</b>
+<b class="fc">&nbsp;        return convertToDto(updatedTransaction);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Convert Transaction entity to DTO
+&nbsp;     */
+&nbsp;    private TransactionResponseDto convertToDto(Transaction transaction) {
+<b class="fc">&nbsp;        TransactionResponseDto dto = new TransactionResponseDto();</b>
+<b class="fc">&nbsp;        dto.setId(transaction.getId());</b>
+<b class="fc">&nbsp;        dto.setUserId(transaction.getUser().getId());</b>
+<b class="fc">&nbsp;        dto.setAccountNumber(transaction.getAccountNumber());</b>
+<b class="fc">&nbsp;        dto.setTransactionType(transaction.getTransactionType());</b>
+<b class="fc">&nbsp;        dto.setAmount(transaction.getAmount());</b>
+<b class="fc">&nbsp;        dto.setDate(transaction.getDate());</b>
+<b class="fc">&nbsp;        dto.setVia(transaction.getVia());</b>
+<b class="fc">&nbsp;        dto.setTo(transaction.getTo());</b>
+<b class="fc">&nbsp;        dto.setAvailableBalance(transaction.getAvailableBalance());</b>
+<b class="fc">&nbsp;        dto.setReferenceNumber(transaction.getReferenceNumber());</b>
+<b class="fc">&nbsp;        dto.setCategory(transaction.getCategory());</b>
+<b class="fc">&nbsp;        dto.setNotes(transaction.getNotes());</b>
+<b class="fc">&nbsp;        dto.setTags(transaction.getTags());</b>
+<b class="fc">&nbsp;        dto.setOriginalMessage(transaction.getOriginalMessage());</b>
+<b class="fc">&nbsp;        dto.setIsRecurring(transaction.getIsRecurring());</b>
+<b class="fc">&nbsp;        dto.setMerchantName(transaction.getMerchantName());</b>
+<b class="fc">&nbsp;        dto.setLocation(transaction.getLocation());</b>
+<b class="fc">&nbsp;        dto.setCurrency(transaction.getCurrency());</b>
+<b class="fc">&nbsp;        dto.setIsVerified(transaction.getIsVerified());</b>
+<b class="fc">&nbsp;        dto.setRegexPatternId(transaction.getRegexPatternId());</b>
+<b class="fc">&nbsp;        dto.setBankAddress(transaction.getBankAddress());</b>
+<b class="fc">&nbsp;        dto.setCreatedAt(transaction.getCreatedAt());</b>
+<b class="fc">&nbsp;        dto.setUpdatedAt(transaction.getUpdatedAt());</b>
+<b class="fc">&nbsp;        dto.setMatchFound(true); // If entity exists, match was found</b>
+<b class="fc">&nbsp;        return dto;</b>
+&nbsp;    }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-01-30 01:19</div>
+</div>
+</body>
+</html>
